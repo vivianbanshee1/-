@@ -1,0 +1,3 @@
+497
+snakeColor 1
+mapSize 20
