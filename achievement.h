@@ -23,7 +23,7 @@
 #define ACH_MIRRORWIN   8   /* 镜像对决中获胜 */
 #define ACH_RED50       9   /* 吃到满分红食物(50分) */
 
-/* 从 record.txt 加载成就位掩码 */
+/* 从 record.txt 加载成就位掩码（兼容旧 achievements.txt） */
 unsigned achLoad(void);
 
 /* 加载累计统计：蓝食物总数、AI击杀总数、护盾拦截总数 */

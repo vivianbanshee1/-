@@ -63,7 +63,7 @@ void gfxClose(void);
 void gfxDrawMenu(const GameState *g, int menuPage, int hoverIndex);
 void gfxDrawGame(const GameState *g);
 void gfxDrawPause(void);
-void gfxDrawDeadTitle(const GameState *g);
+void gfxDrawDeadTitle(const GameState *g, int remainingMs);
 void gfxDrawGameOver(const GameState *g, int score, int highScore, int isNewRecord, int hoverIndex);
 void gfxDrawDualOver(const GameState *g, int winner, int score1, int score2, int hoverIndex);
 
@@ -71,7 +71,7 @@ void gfxDrawDualOver(const GameState *g, int winner, int score1, int score2, int
 void gfxDrawMirrorGame(const GameState *g1, const GameState *g2,
                        int p1Dead, int p2Dead);
 void gfxDrawMirrorDeadTitle(const GameState *g1, const GameState *g2,
-                            int p1Dead, int p2Dead);
+                            int p1Dead, int p2Dead, int remainingMs);
 void gfxDrawMirrorOver(int score1, int score2, int winner, int hoverIndex);
 
 #endif /* GFX_H */

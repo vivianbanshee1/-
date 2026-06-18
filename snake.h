@@ -58,6 +58,7 @@
 #define MENU_DUAL_MODE    4   /* 双人模式选择 */
 #define MENU_DUAL_MIRROR  5   /* 镜像对决难度选择 */
 #define MENU_ACHIEVEMENTS 6   /* 成就查看 */
+#define MENU_HOWTOPLAY    7   /* 玩法说明 */
 
 /* ===================================================
  *  道具类型
@@ -157,13 +158,13 @@ typedef struct {
 } Snake;
 
 /* AI 蛇 */
-#define MAX_AI          5      /* 场上最大AI蛇数 */
+#define MAX_AI          3      /* 场上最大AI蛇数（降低AI压力） */
 #define MOVING_OBS_MAX  5      /* 移动障碍上限 */
-#define AI_SPAWN_MIN  12.0f  /* AI生成最短间隔（秒） */
-#define AI_SPAWN_MAX  20.0f  /* AI生成最长间隔（秒） */
-#define AI_MIN_LEN    3      /* AI初始最小长度 */
-#define AI_MAX_LEN    8      /* AI初始最大长度 */
-#define AI_SPEED      130    /* AI帧间隔ms（与普通难度一致）*/
+#define AI_SPAWN_MIN  18.0f  /* AI生成最短间隔（秒） */
+#define AI_SPAWN_MAX  30.0f  /* AI生成最长间隔（秒） */
+#define AI_MIN_LEN    2      /* AI初始最小长度 */
+#define AI_MAX_LEN    4      /* AI初始最大长度 */
+#define AI_SPEED      220    /* AI帧间隔ms（数值越大越慢）*/
 
 typedef struct {
     Position body[MAX_LEN];
