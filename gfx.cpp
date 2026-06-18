@@ -86,6 +86,24 @@
 #define CLR_RED_FOOD      RGB(255, 94, 102)
 #define CLR_RED_GLOW      RGB(255, 150, 160)
 
+/* 水果配色 */
+#define CLR_BLUEBERRY      RGB(72, 92, 200)
+#define CLR_BLUEBERRY_HL   RGB(170, 200, 255)
+#define CLR_BLUEBERRY_DARK RGB(40, 60, 140)
+#define CLR_BLUEBERRY_LEAF RGB(80, 180, 80)
+#define CLR_STRAWBERRY     RGB(230, 50, 70)
+#define CLR_STRAWBERRY_HL  RGB(255, 170, 180)
+#define CLR_STRAWBERRY_DK  RGB(150, 25, 40)
+#define CLR_STRAWBERRY_LEAF RGB(70, 190, 80)
+#define CLR_STRAWBERRY_SEED RGB(255, 220, 130)
+
+/* UI 多彩点缀 */
+#define CLR_ACCENT_CYAN    RGB(94, 220, 230)
+#define CLR_ACCENT_LIME    RGB(180, 230, 90)
+#define CLR_ACCENT_PINK    RGB(255, 130, 180)
+#define CLR_ACCENT_AMBER   RGB(255, 200, 80)
+#define CLR_ACCENT_GOLD    RGB(255, 215, 90)
+
 /* 道具 */
 #define CLR_TURBO         RGB(255, 214, 60)
 #define CLR_TURBO_EDGE    RGB(255, 246, 168)
@@ -369,12 +387,101 @@ static void drawPixelGemFood(int left, int top, COLORREF fill, COLORREF glow, CO
 
 static void drawPixelBlueFood(int left, int top, COLORREF ambient)
 {
-    drawPixelGemFood(left, top, CLR_BLUE_FOOD, CLR_BLUE_GLOW, ambient);
+    (void)ambient;
+    /* 蓝莓：深紫实心圆 + 高光斑 + 顶部一片小绿叶 */
+    int cx = left + CELL_PX / 2;
+    int cy = left + CELL_PX / 2;
+    cy = left + CELL_PX * 2 / 3;
+    int r = CELL_PX * 2 / 5;
+
+    /* 暗光晕 */
+    setfillcolor(CLR_BLUEBERRY_DARK);
+    setlinecolor(CLR_BLUEBERRY_DARK);
+    solidcircle(cx, cy, r + 1);
+
+    /* 主体 */
+    setfillcolor(CLR_BLUEBERRY);
+    setlinecolor(CLR_BLUEBERRY_DARK);
+    solidcircle(cx, cy, r);
+
+    /* 高光斑（小白点） */
+    setfillcolor(CLR_BLUEBERRY_HL);
+    setlinecolor(CLR_BLUEBERRY_HL);
+    solidcircle(cx - r / 3, cy - r / 3, r / 4);
+
+    /* 顶部小绿叶（三角形） */
+    {
+        POINT leaf[3];
+        leaf[0].x = cx;
+        leaf[0].y = cy - r - 1;
+        leaf[1].x = cx - r / 2;
+        leaf[1].y = cy - r / 4;
+        leaf[2].x = cx + r / 2;
+        leaf[2].y = cy - r / 4;
+        setfillcolor(CLR_BLUEBERRY_LEAF);
+        setlinecolor(CLR_BLUEBERRY_LEAF);
+        solidpolygon(leaf, 3);
+    }
+
+    /* 底部小果蒂（深色） */
+    setfillcolor(CLR_BLUEBERRY_DARK);
+    solidcircle(cx, cy + r - 1, 2);
 }
 
 static void drawPixelRedFood(int left, int top, COLORREF ambient)
 {
-    drawPixelGemFood(left, top, CLR_RED_FOOD, CLR_RED_GLOW, ambient);
+    (void)ambient;
+    /* 草莓：红色三角/倒锥形 + 顶部绿叶 + 黄色籽点 */
+    int cx = left + CELL_PX / 2;
+    int topY = left + CELL_PX / 3;
+    int bottomY = left + CELL_PX - 2;
+    int halfW = CELL_PX / 3;
+    POINT body[3];
+
+    body[0].x = cx - halfW; body[0].y = topY + 2;
+    body[1].x = cx + halfW; body[1].y = topY + 2;
+    body[2].x = cx;        body[2].y = bottomY;
+
+    /* 主体深底 */
+    POINT bodyShadow[3];
+    bodyShadow[0].x = body[0].x - 1; bodyShadow[0].y = body[0].y - 1;
+    bodyShadow[1].x = body[1].x + 1; bodyShadow[1].y = body[1].y - 1;
+    bodyShadow[2].x = body[2].x;     bodyShadow[2].y = body[2].y + 1;
+    setfillcolor(CLR_STRAWBERRY_DK);
+    setlinecolor(CLR_STRAWBERRY_DK);
+    solidpolygon(bodyShadow, 3);
+
+    /* 主体红 */
+    setfillcolor(CLR_STRAWBERRY);
+    setlinecolor(CLR_STRAWBERRY_DK);
+    solidpolygon(body, 3);
+
+    /* 高光 */
+    setfillcolor(CLR_STRAWBERRY_HL);
+    setlinecolor(CLR_STRAWBERRY_HL);
+    POINT hl[3] = {{cx - halfW/2, topY + 4}, {cx - halfW/4, topY + 4}, {cx - halfW/2, topY + halfW + 2}};
+    solidpolygon(hl, 3);
+
+    /* 顶部绿叶（5 片三角形围成） */
+    setfillcolor(CLR_STRAWBERRY_LEAF);
+    setlinecolor(CLR_STRAWBERRY_LEAF);
+    solidcircle(cx, topY + 1, 4);
+    /* 旁两片小叶 */
+    {
+        POINT side[3] = {{cx - 5, topY + 2}, {cx - 1, topY - 2}, {cx - 1, topY + 4}};
+        POINT side2[3] = {{cx + 5, topY + 2}, {cx + 1, topY - 2}, {cx + 1, topY + 4}};
+        solidpolygon(side, 3);
+        solidpolygon(side2, 3);
+    }
+
+    /* 黄色籽点（5 颗小黄点散布在主体上） */
+    setfillcolor(CLR_STRAWBERRY_SEED);
+    setlinecolor(CLR_STRAWBERRY_SEED);
+    solidcircle(cx - 3, topY + 9, 1);
+    solidcircle(cx + 4, topY + 10, 1);
+    solidcircle(cx - 5, topY + 14, 1);
+    solidcircle(cx + 2, topY + 15, 1);
+    solidcircle(cx + 6, topY + 15, 1);
 }
 
 /* 绘制道具 — 彩色圆 + 字母标识 + 区分边框 */
@@ -544,6 +651,35 @@ static void drawPixelButton(int index, LPCTSTR text, int hover)
     setlinecolor(border);
     rectangle(x + 2, y + 2, x + w - 2, y + h - 2);
 
+    /* 左上角色块点缀：5 个按钮各分配一个主题色 */
+    {
+        COLORREF accent = CLR_ACCENT_CYAN;
+        switch (index) {
+            case 1: accent = CLR_ACCENT_CYAN;  break;  /* 单人: 青 */
+            case 2: accent = CLR_ACCENT_PINK;  break;  /* 双人: 粉 */
+            case 3: accent = CLR_ACCENT_AMBER; break;  /* 玩法: 琥珀 */
+            case 4: accent = CLR_ACCENT_LIME;  break;  /* 设置: 嫩绿 */
+            case 5: accent = CLR_ACCENT_GOLD;  break;  /* 成就: 金 */
+            default: break;
+        }
+        setfillcolor(accent);
+        setlinecolor(accent);
+        /* hover 时稍大；常态小圆点 */
+        solidcircle(x + 14, y + 14, hover ? 7 : 5);
+    }
+
+    /* 右下角小三角点缀（hover 时出现） */
+    if (hover) {
+        POINT tri[3] = {
+            { x + w - 16, y + h - 14 },
+            { x + w - 6,  y + h - 14 },
+            { x + w - 11, y + h - 6 }
+        };
+        setfillcolor(CLR_PANEL_GLOW);
+        setlinecolor(CLR_PANEL_GLOW);
+        solidpolygon(tri, 3);
+    }
+
     settextstyle(FONT_SCALE(24), 0, FONT_UI);
     drawTextCenter(x, y, w, h, text, hover ? CLR_PANEL_GLOW : CLR_TEXT);
 }
@@ -600,12 +736,11 @@ static COLORREF getSnakeBodyColor(int index, int len,
 
 static COLORREF getP1BodyColor(int index, int len, int snakeColor)
 {
+    (void)index; (void)len;
     snakeColor = normalizeSnakeColor(snakeColor);
-    if (snakeColor == SNAKE_COLOR_BLUE)
-        return getSnakeBodyColor(index, len, CLR_S1B_H, CLR_S1B_B1, CLR_S1B_B2, CLR_S1B_B3);
-    if (snakeColor == SNAKE_COLOR_PURPLE)
-        return getSnakeBodyColor(index, len, CLR_S1P_H, CLR_S1P_B1, CLR_S1P_B2, CLR_S1P_B3);
-    return getSnakeBodyColor(index, len, CLR_S1_H, CLR_S1_B1, CLR_S1_B2, CLR_S1_B3);
+    if (snakeColor == SNAKE_COLOR_BLUE)   return CLR_S1B_B1;
+    if (snakeColor == SNAKE_COLOR_PURPLE) return CLR_S1P_B1;
+    return CLR_S1_B1;
 }
 
 static COLORREF getP1HeadColor(int snakeColor)
@@ -618,12 +753,14 @@ static COLORREF getP1HeadColor(int snakeColor)
 
 static COLORREF getP2BodyColor(int index, int len)
 {
-    return getSnakeBodyColor(index, len, CLR_S2_H, CLR_S2_B1, CLR_S2_B2, CLR_S2_B3);
+    (void)index; (void)len;
+    return CLR_S2_B1;
 }
 
 static COLORREF getAIBodyColor(int index, int len)
 {
-    return getSnakeBodyColor(index, len, CLR_AI_H, CLR_AI_B1, CLR_AI_B2, CLR_AI_B3);
+    (void)index; (void)len;
+    return CLR_AI_B1;
 }
 
 static LPCTSTR colorName(int snakeColor)
@@ -793,9 +930,13 @@ static void drawGameContent(const GameState *g)
     cleardevice();
     drawCheckerboard();
 
+    /* 先画地图，再画计分板，避免地图外框遮住左上角计分板 */
+    drawMapAt(g, ox, oy);
+
     if (g->gameMode == MODE_DUAL || g->gameMode == MODE_DUAL_TIMED) {
         drawInfoPanel(20, 12, 270, 92, _T("P1"), NULL, CLR_PANEL_GLOW);
         settextstyle(FONT_SCALE(16), 0, FONT_UI);
+        setbkmode(TRANSPARENT);
         settextcolor(CLR_TEXT);
         _stprintf(buf, _T("得分: %d"), g->score);
         outtextxy(36, 42, buf);
@@ -806,6 +947,7 @@ static void drawGameContent(const GameState *g)
 
         drawInfoPanel(810, 12, 270, 92, _T("P2"), NULL, CLR_PANEL_GLOW);
         settextstyle(FONT_SCALE(16), 0, FONT_UI);
+        setbkmode(TRANSPARENT);
         settextcolor(CLR_TEXT);
         _stprintf(buf, _T("得分: %d"), g->score2);
         outtextxy(826, 42, buf);
@@ -816,6 +958,7 @@ static void drawGameContent(const GameState *g)
     } else {
         drawInfoPanel(20, 12, 320, 92, _T("游戏信息"), NULL, CLR_PANEL_GLOW);
         settextstyle(FONT_SCALE(16), 0, FONT_UI);
+        setbkmode(TRANSPARENT);
         settextcolor(CLR_TEXT);
         _stprintf(buf, _T("得分: %d"), g->score);
         outtextxy(36, 42, buf);
@@ -825,13 +968,12 @@ static void drawGameContent(const GameState *g)
 
     drawInfoPanel(WIN_W - 190, 12, 180, 92, _T("难度/地图"), NULL, CLR_PANEL_GLOW);
     settextstyle(FONT_SCALE(16), 0, FONT_UI);
+    setbkmode(TRANSPARENT);
     settextcolor(CLR_TEXT);
     _stprintf(buf, _T("难度: %s"), difficultyName(g->difficulty));
     outtextxy(WIN_W - 174, 42, buf);
     _stprintf(buf, _T("地图: %dx%d"), mapSize, mapSize);
     outtextxy(WIN_W - 174, 64, buf);
-
-    drawMapAt(g, ox, oy);
 
     if (g->gameMode == MODE_DUAL || g->gameMode == MODE_DUAL_TIMED) {
         drawEffectIndicators(g, 0, 830, 112);
@@ -936,15 +1078,14 @@ void gfxDrawMenu(const GameState *g, int menuPage, int hoverIndex)
     if (menuPage == MENU_MAIN) {
         drawPixelButton(1, _T("1  单人模式"), hoverIndex == 1);
         drawPixelButton(2, _T("2  双人对战"), hoverIndex == 2);
-        drawPixelButton(3, _T("3  生存模式"), hoverIndex == 3);
+        drawPixelButton(3, _T("3  玩法说明"), hoverIndex == 3);
         drawPixelButton(4, _T("4  设置"), hoverIndex == 4);
         drawPixelButton(5, _T("5  成就查看"), hoverIndex == 5);
 
         drawTextCenter(0, 520, WIN_W, 30, _T("按 Q 退出"), CLR_HINT);
     }
     else if (menuPage == MENU_SINGLE_DIFF) {
-        drawTextCenter(0, 150, WIN_W, 30,
-            (g && g->gameMode == MODE_SURVIVAL) ? _T("生存模式 — 选择难度") : _T("选择难度"), CLR_TEXT);
+        drawTextCenter(0, 150, WIN_W, 30, _T("选择难度"), CLR_TEXT);
         drawPixelButton(1, _T("1  简单"), hoverIndex == 1);
         drawPixelButton(2, _T("2  普通"), hoverIndex == 2);
         drawPixelButton(3, _T("3  困难"), hoverIndex == 3);
@@ -982,9 +1123,66 @@ void gfxDrawMenu(const GameState *g, int menuPage, int hoverIndex)
         drawPixelButton(2, buf, hoverIndex == 2);
         _stprintf(buf, _T("3  玩法: %s"), itemMode == GAMEPLAY_ITEM ? _T("道具版") : _T("经典版"));
         drawPixelButton(3, buf, hoverIndex == 3);
-        _stprintf(buf, _T("4  AI敌人: %s"), aiEnabled ? _T("开启") : _T("关闭"));
+        _stprintf(buf, _T("4  AI敌人(单人): %s"), aiEnabled ? _T("开启") : _T("关闭"));
         drawPixelButton(4, buf, hoverIndex == 4);
         drawTextCenter(0, 520, WIN_W, 30, _T("M 返回"), CLR_HINT);
+    }
+    else if (menuPage == MENU_HOWTOPLAY) {
+        drawTextCenter(0, 150, WIN_W, 30, _T("玩法说明"), CLR_PANEL_GLOW);
+
+        /* === 经典模式 vs 道具模式 对比 === */
+        settextstyle(FONT_SCALE(16), 0, FONT_UI);
+        setbkmode(TRANSPARENT);
+        settextcolor(CLR_TEXT);
+        outtextxy(60, 195, _T("经典模式:无道具,纯净贪吃蛇体验;蓝色食物 +10 倍率"));
+        outtextxy(60, 215, _T("道具模式:场上随机刷道具,8 种效果改变战局"));
+
+        settextcolor(CLR_ACCENT_AMBER);
+        outtextxy(60, 240, _T("── 8 种道具 ──"));
+
+        /* 道具列表 */
+        struct { LPCTSTR name; LPCTSTR desc; COLORREF c; } items[] = {
+            { _T("极速 Z"), _T("速度×3,持续5秒"),         CLR_TURBO },
+            { _T("护盾 S"), _T("免死1次,可叠3层,15秒"),   CLR_SHIELD },
+            { _T("减速 -"), _T("速度×1.5,持续4秒"),        CLR_SLOW },
+            { _T("磁铁 M"), _T("3格内自动吃蓝食,6秒"),    CLR_MAGNET },
+            { _T("冻结 F"), _T("冻结对手3秒(双人)"),       CLR_FREEZE },
+            { _T("缩短 X"), _T("蛇尾减3节,即时生效"),     CLR_SHRINK },
+            { _T("穿墙 G"), _T("穿过自己身体,6秒"),       CLR_GHOST },
+            { _T("双倍 2"), _T("得分×2,持续10秒"),         CLR_DOUBLE },
+        };
+        int y = 270;
+        int i;
+        for (i = 0; i < 8; i++) {
+            /* 色块 */
+            setfillcolor(items[i].c);
+            setlinecolor(items[i].c);
+            solidcircle(75, y + 6, 5);
+            /* 名称 + 描述 */
+            settextstyle(FONT_SCALE(14), 0, FONT_UI);
+            settextcolor(CLR_TEXT);
+            outtextxy(95, y, items[i].name);
+            settextcolor(CLR_HINT);
+            outtextxy(180, y, items[i].desc);
+            y += 22;
+        }
+
+        /* AI 敌人特性 */
+        y += 8;
+        settextcolor(CLR_ACCENT_PINK);
+        outtextxy(60, y, _T("── AI 敌人(仅单人模式)──"));
+        y += 24;
+        settextstyle(FONT_SCALE(13), 0, FONT_UI);
+        settextcolor(CLR_HINT);
+        outtextxy(60, y, _T("贪心寻路:始终朝最近蓝食物移动 (Manhattan 距离)"));
+        y += 18;
+        outtextxy(60, y, _T("随机生成:场上最多3条,间隔18-30秒"));
+        y += 18;
+        outtextxy(60, y, _T("击杀奖励:撞死AI按其长度×蓝食分数得分"));
+        y += 18;
+        outtextxy(60, y, _T("多人模式下默认关闭,避免和玩家蛇互相干扰"));
+
+        drawTextCenter(0, 520, WIN_W, 30, _T("M 返回 | Q 退出"), CLR_HINT);
     }
     else if (menuPage == MENU_ACHIEVEMENTS) {
         int i;
@@ -1049,7 +1247,7 @@ void gfxDrawPause(void)
     FlushBatchDraw();
 }
 
-void gfxDrawDeadTitle(const GameState *g)
+void gfxDrawDeadTitle(const GameState *g, int remainingMs)
 {
     int px, py, pw, ph;
 
@@ -1068,7 +1266,13 @@ void gfxDrawDeadTitle(const GameState *g)
         drawTextCenter(px, py + 18, pw, 50, _T("GAME OVER"), CLR_RED_FOOD);
 
     settextstyle(FONT_SCALE(18), 0, FONT_UI);
-    drawTextCenter(px, py + 80, pw, 30, _T("按任意键继续..."), CLR_TEXT);
+    if (remainingMs > 0) {
+        TCHAR buf[32];
+        _stprintf(buf, _T("缓冲中... %.1fs"), remainingMs / 1000.0f);
+        drawTextCenter(px, py + 80, pw, 30, buf, CLR_ACCENT_AMBER);
+    } else {
+        drawTextCenter(px, py + 80, pw, 30, _T("按任意键继续..."), CLR_TEXT);
+    }
 
     FlushBatchDraw();
 }
@@ -1140,37 +1344,41 @@ void gfxDrawDualOver(const GameState *g, int winner, int score1, int score2, int
  *  镜像对决渲染
  * =================================================== */
 
-/* 镜像模式中间按钮状态 */
-static int s_mirrorBtnX = 0, s_mirrorBtnY = 0, s_mirrorBtnW = 120, s_mirrorBtnH = 40;
-
-static void drawMirrorEndButton(void)
+/* 镜像模式立即结算按钮 — 纯函数式坐标计算（避免渲染与输入检测的时序错位） */
+static void computeMirrorEndRect(int *x, int *y, int *w, int *h)
 {
     int cx = MIRROR_GAP_CX;
     int cy = WIN_H / 2 + 100;
-    s_mirrorBtnX = cx - s_mirrorBtnW / 2;
-    s_mirrorBtnY = cy;
-    s_mirrorBtnW = 128;
-    s_mirrorBtnH = 42;
+    *w = 128;
+    *h = 42;
+    *x = cx - *w / 2;
+    *y = cy;
+}
+
+static void drawMirrorEndButton(void)
+{
+    int bx, by, bw, bh;
+    computeMirrorEndRect(&bx, &by, &bw, &bh);
 
     setfillcolor(CLR_PANEL);
-    solidrectangle(s_mirrorBtnX, s_mirrorBtnY,
-                   s_mirrorBtnX + s_mirrorBtnW, s_mirrorBtnY + s_mirrorBtnH);
+    solidrectangle(bx, by, bx + bw, by + bh);
     setlinecolor(CLR_BORDER_HI);
-    rectangle(s_mirrorBtnX + 2, s_mirrorBtnY + 2, s_mirrorBtnX + s_mirrorBtnW - 2, s_mirrorBtnY + s_mirrorBtnH - 2);
+    rectangle(bx + 2, by + 2, bx + bw - 2, by + bh - 2);
     settextstyle(FONT_SCALE(18), 0, FONT_UI);
     setbkmode(TRANSPARENT);
     settextcolor(CLR_PANEL_GLOW);
     {
-        RECT r = { s_mirrorBtnX, s_mirrorBtnY,
-                   s_mirrorBtnX + s_mirrorBtnW, s_mirrorBtnY + s_mirrorBtnH };
+        RECT r = { bx, by, bx + bw, by + bh };
         drawtext(_T("立即结算"), &r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
 }
 
 int gfxHitMirrorEndButton(int mx, int my)
 {
-    if (mx >= s_mirrorBtnX && mx <= s_mirrorBtnX + s_mirrorBtnW &&
-        my >= s_mirrorBtnY && my <= s_mirrorBtnY + s_mirrorBtnH)
+    int bx, by, bw, bh;
+    computeMirrorEndRect(&bx, &by, &bw, &bh);
+    if (mx >= bx && mx <= bx + bw &&
+        my >= by && my <= by + bh)
         return 1;
     return 0;
 }
@@ -1183,27 +1391,30 @@ void gfxDrawMirrorGame(const GameState *g1, const GameState *g2,
     cleardevice();
     drawCheckerboard();
 
-    drawInfoPanel(20, 12, 260, 92, _T("P1 对战区"), NULL, CLR_PANEL_GLOW);
-    settextstyle(FONT_SCALE(16), 0, FONT_UI);
-    settextcolor(CLR_TEXT);
-    _stprintf(buf, _T("P1: %d"), g1 ? g1->score : 0);
-    outtextxy(36, 42, buf);
-
-    drawInfoPanel(MIRROR_MAP2_X, 12, 260, 92, _T("P2 对战区"), NULL, CLR_PANEL_GLOW);
-    settextstyle(FONT_SCALE(16), 0, FONT_UI);
-    settextcolor(CLR_TEXT);
-    _stprintf(buf, _T("P2: %d"), g2 ? g2->score : 0);
-    outtextxy(MIRROR_MAP2_X + 16, 42, buf);
-
     if (g1) {
         drawMapAt(g1, MIRROR_MAP1_X, MIRROR_MAP_Y);
-        drawEffectIndicators(g1, 0, 30, 42);
     }
 
     if (g2) {
         drawMapAt(g2, MIRROR_MAP2_X, MIRROR_MAP_Y);
-        drawEffectIndicators(g2, 1, MIRROR_MAP2_X + 20, 42);
     }
+
+    /* 计分板最后绘制，避免被地图覆盖 */
+    drawInfoPanel(20, 12, 260, 92, _T("P1 对战区"), NULL, CLR_PANEL_GLOW);
+    settextstyle(FONT_SCALE(16), 0, FONT_UI);
+    setbkmode(TRANSPARENT);
+    settextcolor(CLR_TEXT);
+    _stprintf(buf, _T("P1: %d"), g1 ? g1->score : 0);
+    outtextxy(36, 42, buf);
+    if (g1) drawEffectIndicators(g1, 0, 30, 62);
+
+    drawInfoPanel(MIRROR_MAP2_X, 12, 260, 92, _T("P2 对战区"), NULL, CLR_PANEL_GLOW);
+    settextstyle(FONT_SCALE(16), 0, FONT_UI);
+    setbkmode(TRANSPARENT);
+    settextcolor(CLR_TEXT);
+    _stprintf(buf, _T("P2: %d"), g2 ? g2->score : 0);
+    outtextxy(MIRROR_MAP2_X + 16, 42, buf);
+    if (g2) drawEffectIndicators(g2, 1, MIRROR_MAP2_X + 20, 62);
 
     if (p1Dead || p2Dead) {
         settextstyle(FONT_SCALE(24), 0, FONT_UI);
@@ -1221,6 +1432,7 @@ void gfxDrawMirrorGame(const GameState *g1, const GameState *g2,
     }
 
     settextstyle(FONT_SCALE(15), 0, FONT_UI);
+    setbkmode(TRANSPARENT);
     settextcolor(CLR_HINT);
     outtextxy(50, WIN_H - 28, _T("P1:WASD+J"));
     outtextxy(MIRROR_MAP2_X, WIN_H - 28, _T("P2:方向键+0   P暂停  Q退出"));
@@ -1234,7 +1446,7 @@ void gfxDrawMirrorGame(const GameState *g1, const GameState *g2,
 }
 
 void gfxDrawMirrorDeadTitle(const GameState *g1, const GameState *g2,
-                            int p1Dead, int p2Dead)
+                            int p1Dead, int p2Dead, int remainingMs)
 {
     int px, py, pw, ph;
 
@@ -1255,7 +1467,13 @@ void gfxDrawMirrorDeadTitle(const GameState *g1, const GameState *g2,
     drawTextCenter(px, py + 18, pw, 50, _T("GAME OVER"), CLR_RED_FOOD);
 
     settextstyle(FONT_SCALE(18), 0, FONT_UI);
-    drawTextCenter(px, py + 80, pw, 30, _T("按任意键继续..."), CLR_TEXT);
+    if (remainingMs > 0) {
+        TCHAR buf[32];
+        _stprintf(buf, _T("缓冲中... %.1fs"), remainingMs / 1000.0f);
+        drawTextCenter(px, py + 80, pw, 30, buf, CLR_ACCENT_AMBER);
+    } else {
+        drawTextCenter(px, py + 80, pw, 30, _T("按任意键继续..."), CLR_TEXT);
+    }
 
     FlushBatchDraw();
 }

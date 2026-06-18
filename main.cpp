@@ -131,7 +131,7 @@ static int runGame(void)
             if (menuPage == MENU_MAIN) {
                 if (key == '1') { singleMode = MODE_SINGLE; menuPage = MENU_SINGLE_DIFF; hoverIndex = 0; }
                 else if (key == '2') { menuPage = MENU_DUAL_MODE; hoverIndex = 0; }
-                else if (key == '3') { singleMode = MODE_SURVIVAL; menuPage = MENU_SINGLE_DIFF; hoverIndex = 0; }
+                else if (key == '3') { menuPage = MENU_HOWTOPLAY; hoverIndex = 0; }
                 else if (key == '4') { menuPage = MENU_SETTINGS; hoverIndex = 0; }
                 else if (key == '5') { menuPage = MENU_ACHIEVEMENTS; hoverIndex = 0; }
                 else if (key == 'Q') running = 0;
@@ -140,7 +140,6 @@ static int runGame(void)
                 int diff = menuChoiceToDifficulty(key);
                 if (diff >= 0) {
                     gameInit(&g, diff, &cfg);
-                    if (singleMode == MODE_SURVIVAL) g.gameMode = MODE_SURVIVAL;
                     lastTick = GetTickCount();
                 } else if (key == 'M' || key == 27) {
                     menuPage = MENU_MAIN;
@@ -168,10 +167,12 @@ static int runGame(void)
                 int diff = menuChoiceToDifficulty(key);
                 if (diff >= 0) {
                     unsigned seed = (unsigned)time(NULL);
+                    GameConfig duelCfg = cfg;
+                    duelCfg.aiEnabled = 0;
                     mirrorP1Dead = 0; mirrorP2Dead = 0;
                     mirrorEndRequested = 0;
-                    srand(seed); gameInit(&g, diff, &cfg);
-                    srand(seed); gameInit(&g2, diff, &cfg);
+                    srand(seed); gameInit(&g, diff, &duelCfg);
+                    srand(seed); gameInit(&g2, diff, &duelCfg);
                     g.gameMode = MODE_DUAL_MIRROR;
                     g2.gameMode = MODE_DUAL_MIRROR;
                     g.lastTickP1 = GetTickCount();
@@ -220,6 +221,14 @@ static int runGame(void)
                     running = 0;
                 }
             } else if (menuPage == MENU_ACHIEVEMENTS) {
+                if (key == 'M' || key == 27) {
+                    menuPage = MENU_MAIN;
+                    hoverIndex = 0;
+                } else if (key == 'Q') {
+                    running = 0;
+                }
+            }
+            else if (menuPage == MENU_HOWTOPLAY) {
                 if (key == 'M' || key == 27) {
                     menuPage = MENU_MAIN;
                     hoverIndex = 0;
@@ -433,14 +442,23 @@ static int runGame(void)
         /* ==================== 死亡标题 ==================== */
         else if (g.gameState == STATE_DEAD_TITLE) {
             int key = gfxGetKey();
+            DWORD now = GetTickCount();
+            int elapsed = (int)(now - g.deadTick);
+            int remaining = 1000 - elapsed;
+            if (remaining < 0) remaining = 0;
+
             if (key == 'q') key = 'Q';
             if (g.gameMode == MODE_DUAL_MIRROR) {
-                gfxDrawMirrorDeadTitle(&g, &g2, mirrorP1Dead, mirrorP2Dead);
+                gfxDrawMirrorDeadTitle(&g, &g2, mirrorP1Dead, mirrorP2Dead, remaining);
             } else {
-                gfxDrawDeadTitle(&g);
+                gfxDrawDeadTitle(&g, remaining);
             }
+
             if (key == 'Q') {
                 running = 0;
+            } else if (remaining > 0) {
+                /* 缓冲期内：忽略任意键转移（仅允许 Q 退出） */
+                ;
             } else if (key != 0) {
                 g.gameState = STATE_DEAD;
                 hoverIndex = 0;
@@ -462,15 +480,17 @@ static int runGame(void)
             } else if (g.gameMode == MODE_DUAL || g.gameMode == MODE_DUAL_TIMED)
                 gfxDrawDualOver(&g, g.winner, g.score, g.score2, hoverIndex);
             else
-                gfxDrawGameOver(&g, g.score, g.highScore, g.score == g.highScore, hoverIndex);
+                gfxDrawGameOver(&g, g.score, g.highScore, g.score >= g.highScore && g.score > 0, hoverIndex);
 
             if (key == 'R') {
                 if (g.gameMode == MODE_DUAL_MIRROR) {
                     unsigned seed = (unsigned)time(NULL);
+                    GameConfig duelCfg = cfg;
+                    duelCfg.aiEnabled = 0;
                     mirrorP1Dead = 0; mirrorP2Dead = 0;
                     mirrorEndRequested = 0;
-                    srand(seed); gameInit(&g, g.difficulty, &cfg);
-                    srand(seed); gameInit(&g2, g2.difficulty, &cfg);
+                    srand(seed); gameInit(&g, g.difficulty, &duelCfg);
+                    srand(seed); gameInit(&g2, g2.difficulty, &duelCfg);
                     g.gameMode = MODE_DUAL_MIRROR;
                     g2.gameMode = MODE_DUAL_MIRROR;
                     g.lastTickP1 = g2.lastTickP1 = GetTickCount();

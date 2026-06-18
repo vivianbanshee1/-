@@ -2,6 +2,7 @@
  *  achievement.cpp - 成就系统实现
  * ============================================================ */
 #include "achievement.h"
+#include "record.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,46 +63,51 @@ LPCTSTR achDesc(int achId) { return aDesc[achId]; }
 
 unsigned achLoad(void)
 {
-    FILE *fp = fopen("achievements.txt", "r");
     unsigned mask = 0;
-    if (fp) {
-        fscanf(fp, "%u", &mask);
-        fclose(fp);
+    /* 优先从 record.txt 读取 */
+    if (loadRecordAchievements(&mask, NULL, NULL, NULL))
+        return mask;
+
+    /* 兼容旧存档：从未迁移的 achievements.txt 读取 */
+    {
+        FILE *fp = fopen("achievements.txt", "r");
+        if (fp) {
+            fscanf(fp, "%u", &mask);
+            fclose(fp);
+        }
     }
     return mask;
 }
 
 void achLoadState(int *blueTotal, int *aiKills, int *shieldBlocks)
 {
-    FILE *fp = fopen("achievements.txt", "r");
-    char line[128];
-
-    if (blueTotal) *blueTotal = 0;
-    if (aiKills) *aiKills = 0;
-    if (shieldBlocks) *shieldBlocks = 0;
-
-    if (!fp)
+    if (loadRecordAchievements(NULL, blueTotal, aiKills, shieldBlocks))
         return;
 
-    while (fgets(line, sizeof(line), fp)) {
-        parseCounterLine(line, "blueTotal", blueTotal);
-        parseCounterLine(line, "aiKills", aiKills);
-        parseCounterLine(line, "shieldBlocks", shieldBlocks);
-    }
+    /* 兼容旧存档 */
+    {
+        FILE *fp = fopen("achievements.txt", "r");
+        char line[128];
 
-    fclose(fp);
+        if (blueTotal) *blueTotal = 0;
+        if (aiKills) *aiKills = 0;
+        if (shieldBlocks) *shieldBlocks = 0;
+
+        if (!fp) return;
+
+        while (fgets(line, sizeof(line), fp)) {
+            parseCounterLine(line, "blueTotal", blueTotal);
+            parseCounterLine(line, "aiKills", aiKills);
+            parseCounterLine(line, "shieldBlocks", shieldBlocks);
+        }
+        fclose(fp);
+    }
 }
 
 void achSaveState(unsigned mask, int blueTotal, int aiKills, int shieldBlocks)
 {
-    FILE *fp = fopen("achievements.txt", "w");
-    if (fp) {
-        fprintf(fp, "%u\n", mask);
-        fprintf(fp, "blueTotal %d\n", blueTotal);
-        fprintf(fp, "aiKills %d\n", aiKills);
-        fprintf(fp, "shieldBlocks %d\n", shieldBlocks);
-        fclose(fp);
-    }
+    /* 统一写入 record.txt（保留原有最高分/配置） */
+    saveRecordAchievements(mask, blueTotal, aiKills, shieldBlocks);
 }
 
 int achUnlock(GameState *g, int achId)
@@ -154,7 +160,8 @@ int achCheckAll(GameState *g, int gameMode)
     if (g->achShieldBlocks >= 10)
         newCount += achUnlock(g, ACH_SHIELD10);
 
-    if (g->score >= 200 && g->elapsedTime <= 60.0f)
+    if ((gameMode == MODE_SINGLE || gameMode == MODE_DUAL_TIMED) &&
+        g->score >= 200 && g->elapsedTime > 0.0f && g->elapsedTime <= 60.0f)
         newCount += achUnlock(g, ACH_SPEED200);
 
     if (gameMode == MODE_SURVIVAL && g->elapsedTime >= 180.0f)

@@ -137,7 +137,6 @@ void gameInit(GameState *g, int difficulty, const GameConfig *cfg)
     int achAIKills = g->achAIKills;
     int achShieldBlocks = g->achShieldBlocks;
     GameConfig savedCfg;
-    int cx;
 
     savedCfg.snakeColor = cfg ? normalizeSnakeColor(cfg->snakeColor) : SNAKE_COLOR_GREEN;
     savedCfg.mapSize = cfg ? normalizeMapSize(cfg->mapSize) : MAP_SIZE_LARGE;
@@ -157,13 +156,38 @@ void gameInit(GameState *g, int difficulty, const GameConfig *cfg)
     applyDifficulty(g, difficulty);
     setupGrid(g);
 
-    cx = g->mapSize / 2;
+    /* 出生点行/列随机：避免每局都在地图正中央 */
+    {
+        int rx, ry, tries = 0;
+        do {
+            rx = g->mapSize / 2 + (rand() % 5) - 2;  /* mapSize/2 + {-2,-1,0,1,2} */
+            ry = g->mapSize / 2 + (rand() % 5) - 2;
+            tries++;
+        } while (tries < 16 &&
+                 (rx < 3 || ry < 3 || rx > g->mapSize - 4 || ry > g->mapSize - 4));
+        if (rx < 3) rx = 3;
+        if (ry < 3) ry = 3;
+        if (rx > g->mapSize - 4) rx = g->mapSize - 4;
+        if (ry > g->mapSize - 4) ry = g->mapSize - 4;
+        /* 让蛇头朝上，身子在下方（不影响随机性，只影响渲染） */
+        g->snake.body[0].x = rx;
+        g->snake.body[0].y = ry;
+        g->snake.body[1].x = rx;
+        g->snake.body[1].y = ry + 1;
+        g->snake.body[2].x = rx;
+        g->snake.body[2].y = ry + 2;
+        /* 头部附近清理：避免出生点压在障碍/食物/墙上 */
+        {
+            int bx, by;
+            for (by = ry; by <= ry + 2; by++)
+                for (bx = rx; bx <= rx; bx++)
+                    if (g->grid[by][bx] != CELL_WALL)
+                        g->grid[by][bx] = CELL_SNAKE;
+        }
+    }
     g->snake.len = 3;
     g->snake.dir = DIR_UP;
     g->snake.lastDir = DIR_UP;
-    g->snake.body[0].x = cx; g->snake.body[0].y = cx;
-    g->snake.body[1].x = cx; g->snake.body[1].y = cx + 1;
-    g->snake.body[2].x = cx; g->snake.body[2].y = cx + 2;
     markSnake(&g->snake, CELL_SNAKE, g->grid);
 
     placeObstacles(g);
@@ -205,6 +229,10 @@ void gameInitDual(GameState *g, int difficulty, int mode, const GameConfig *cfg)
     g->gameState = STATE_PLAYING;
     g->winner = WIN_NONE;
 
+    /* 多人模式默认关闭 AI 敌人（避免和玩家蛇互相干扰） */
+    if (mode == MODE_DUAL || mode == MODE_DUAL_TIMED || mode == MODE_DUAL_MIRROR)
+        g->config.aiEnabled = 0;
+
     /* 限时赛设置初始时长 */
     if (mode == MODE_DUAL_TIMED) {
         if (difficulty == 0) g->matchTimer = (float)TIMED_EASY;
@@ -216,8 +244,23 @@ void gameInitDual(GameState *g, int difficulty, int mode, const GameConfig *cfg)
     setupGrid(g);
 
     y = g->mapSize / 2;
+    /* 出生点行随机，避免双方开局位置固定 */
+    {
+        int dy = (rand() % 3) - 1;  /* -1/0/+1 */
+        int y2 = y + dy;
+        if (y2 < 2) y2 = 2;
+        if (y2 > g->mapSize - 3) y2 = g->mapSize - 3;
+        y = y2;
+    }
     x1 = g->mapSize / 4;
     x2 = g->mapSize * 3 / 4;
+    /* 在各自 1/4 象限内再做小范围随机 */
+    x1 += (rand() % 3) - 1;
+    x2 += (rand() % 3) - 1;
+    if (x1 < 3) x1 = 3;
+    if (x2 > g->mapSize - 4) x2 = g->mapSize - 4;
+    if (x1 > g->mapSize / 2 - 4) x1 = g->mapSize / 2 - 4;
+    if (x2 < g->mapSize / 2 + 3) x2 = g->mapSize / 2 + 3;
 
     g->snake.len = 3;
     g->snake.dir = DIR_RIGHT;
