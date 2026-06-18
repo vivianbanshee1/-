@@ -7,6 +7,7 @@
 #include "achievement.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 /* 内部常量 */
 #define ITEM_SPAWN_MIN  8.0f   /* 生成最短间隔 */
@@ -24,6 +25,27 @@
 /* ===================================================
  *  内部辅助
  * =================================================== */
+
+static int itemFeatureEnabled(const GameState *g)
+{
+    return g && normalizeItemMode(g->config.itemMode) == GAMEPLAY_ITEM;
+}
+
+static void clearActiveItemState(GameState *g)
+{
+    if (!g) return;
+
+    g->p1Effects = 0;
+    g->p2Effects = 0;
+    g->p1Shields = 0;
+    g->p2Shields = 0;
+    itemRemove(g);
+    g->itemOnField = ITEM_NONE;
+    g->itemLife = 0.0f;
+    g->itemSpawnCD = 0.0f;
+    memset(g->p1Timers, 0, sizeof(g->p1Timers));
+    memset(g->p2Timers, 0, sizeof(g->p2Timers));
+}
 
 /* 随机生成新道具 */
 static void spawnItem(GameState *g)
@@ -74,6 +96,11 @@ void itemUpdate(GameState *g, float dt)
     float *tm[2];
     int *shields[2];
     int p;
+
+    if (!itemFeatureEnabled(g)) {
+        clearActiveItemState(g);
+        return;
+    }
 
     ef[0] = &g->p1Effects; tm[0] = g->p1Timers; shields[0] = &g->p1Shields;
     ef[1] = &g->p2Effects; tm[1] = g->p2Timers; shields[1] = &g->p2Shields;
@@ -129,6 +156,8 @@ void itemUpdate(GameState *g, float dt)
 
 void itemCollect(GameState *g, int player, int itemType)
 {
+    if (!itemFeatureEnabled(g)) return;
+
     switch (itemType) {
     case ITEM_TURBO:
         setEffect(g, player, EFF_TURBO, TURBO_DURATION);
@@ -185,18 +214,24 @@ void itemCollect(GameState *g, int player, int itemType)
 
 int itemHasEffect(const GameState *g, int player, int eff)
 {
+    if (!itemFeatureEnabled(g)) return 0;
+
     unsigned ef = (player == 0) ? g->p1Effects : g->p2Effects;
     return (ef & (1u << eff)) != 0;
 }
 
 float itemTimer(const GameState *g, int player, int eff)
 {
+    if (!itemFeatureEnabled(g)) return 0.0f;
+
     const float *tm = (player == 0) ? g->p1Timers : g->p2Timers;
     return tm[eff];
 }
 
 int itemShieldCount(const GameState *g, int player)
 {
+    if (!itemFeatureEnabled(g)) return 0;
+
     return (player == 0) ? g->p1Shields : g->p2Shields;
 }
 
@@ -216,6 +251,8 @@ void itemRemove(GameState *g)
 
 int itemConsumeShield(GameState *g, int player)
 {
+    if (!itemFeatureEnabled(g)) return 0;
+
     int *shields = (player == 0) ? &g->p1Shields : &g->p2Shields;
     unsigned *ef = (player == 0) ? &g->p1Effects : &g->p2Effects;
     float *tm = (player == 0) ? g->p1Timers : g->p2Timers;

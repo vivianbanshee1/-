@@ -14,19 +14,28 @@
 #include <tchar.h>
 
 /* ===================================================
- *  窗口布局
+ *  窗口与布局
  * =================================================== */
 #define CELL_PX     24      /* 每格像素 */
 #define WIN_W       1100    /* 窗口宽（镜像对决扩宽） */
 #define WIN_H       600     /* 窗口高 */
+
+/* ===== 主界面布局 ===== */
 #define MAP_X       60      /* 地图左上角X（原单图） */
 #define MAP_Y       80      /* 地图左上角Y（原单图） */
 
+/* ===== 菜单按钮布局（与 input.cpp 共用） ===== */
+#define MENU_BTN_W        320
+#define MENU_BTN_H         56
+#define MENU_BTN_GAP        62
+#define MENU_BTN_START_Y   206
+#define MENU_BTN_X      (WIN_W / 2 - MENU_BTN_W / 2)
+
 /* 镜像对决布局 */
-#define MIRROR_MAP1_X  50   /* P1 地图 X */
-#define MIRROR_MAP2_X  570  /* P2 地图 X */
-#define MIRROR_MAP_Y   56   /* 双地图 Y */
-#define MIRROR_GAP_CX  550  /* 中间间隙中心 X */
+#define MIRROR_MAP1_X   50   /* P1 地图 X */
+#define MIRROR_MAP2_X   570  /* P2 地图 X */
+#define MIRROR_MAP_Y    56   /* 双地图 Y */
+#define MIRROR_GAP_CX   550  /* 中间间隙中心 X */
 
 /* ===================================================
  *  键盘按键码（统一入口）

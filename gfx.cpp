@@ -13,96 +13,114 @@
 #include "achievement.h"
 
 #include <easyx.h>
+#include <math.h>
 #include <stdio.h>
 #include <tchar.h>
 
 /* ===================================================
- *  颜色定义（复古像素风）
+ *  颜色定义（示例风格视觉方案）
  * =================================================== */
 
 /* 背景 */
-#define CLR_BG_LIGHT   RGB(55, 55, 55)
-#define CLR_BG_DARK    RGB(40, 40, 40)
-#define CLR_BG         RGB(45, 45, 45)
+#define CLR_BG_LIGHT      RGB(56, 111, 179)
+#define CLR_BG_DARK       RGB(14, 44, 87)
+#define CLR_BG            RGB(26, 74, 133)
+#define CLR_PANEL         RGB(33, 86, 150)
+#define CLR_PANEL_SOFT    RGB(45, 104, 173)
+#define CLR_PANEL_LINE    RGB(97, 153, 206)
+#define CLR_PANEL_INNER   RGB(27, 82, 148)
+#define CLR_PANEL_DK      RGB(12, 52, 101)
+#define CLR_PANEL_GLOW    RGB(117, 191, 255)
 
 /* 棋盘网格 */
-#define CLR_GRID_BASE  RGB(60, 60, 60)
-#define CLR_GRID_LINE  RGB(75, 75, 75)
-#define CLR_GRID_LIGHT RGB(70, 70, 70)
-#define CLR_GRID_DARK  RGB(55, 55, 55)
+#define CLR_GRID_BASE     RGB(24, 116, 224)
+#define CLR_GRID_LINE     RGB(56, 146, 238)
+#define CLR_GRID_LIGHT    RGB(37, 129, 231)
+#define CLR_GRID_DARK     RGB(19, 98, 206)
 
-/* 木质边框 */
-#define CLR_WOOD       RGB(160, 95, 50)
-#define CLR_WOOD_LIGHT RGB(195, 130, 75)
-#define CLR_WOOD_DARK  RGB(110, 65, 30)
-#define CLR_WALL       RGB(160, 95, 50)
-#define CLR_WALL_LINE  RGB(110, 65, 30)
+/* 棋盘边框 */
+#define CLR_BOARD_EDGE    RGB(80, 146, 220)
+#define CLR_BOARD_EDGE_DN RGB(30, 84, 156)
+#define CLR_WALL          RGB(90, 151, 230)
+#define CLR_WALL_LINE     RGB(63, 112, 195)
+
+/* 棋盘底色 */
+#define CLR_BOARD_BASE    RGB(38, 135, 235)
 
 /* 障碍物 */
-#define CLR_OBS        RGB(150, 150, 150)
-#define CLR_OBS_CRACK  RGB(120, 120, 120)
+#define CLR_OBS           RGB(112, 128, 175)
+#define CLR_OBS_CRACK     RGB(84, 102, 145)
 
 /* P1 蛇 */
-#define CLR_S1_H       RGB(20, 130, 35)
-#define CLR_S1_B1      RGB(40, 180, 55)
-#define CLR_S1_B2      RGB(80, 210, 95)
-#define CLR_S1_B3      RGB(140, 240, 160)
+#define CLR_S1_H          RGB(32, 205, 130)
+#define CLR_S1_B1         RGB(28, 170, 95)
+#define CLR_S1_B2         RGB(24, 132, 75)
+#define CLR_S1_B3         RGB(19, 102, 60)
 
-#define CLR_S1B_H      RGB(30, 100, 180)
-#define CLR_S1B_B1     RGB(50, 140, 220)
-#define CLR_S1B_B2     RGB(95, 175, 240)
-#define CLR_S1B_B3     RGB(150, 210, 255)
+/* 橙色选项（替代原蓝色） */
+#define CLR_S1B_H         RGB(255, 170, 20)
+#define CLR_S1B_B1        RGB(255, 132, 20)
+#define CLR_S1B_B2        RGB(245, 104, 12)
+#define CLR_S1B_B3        RGB(210, 74, 8)
 
-#define CLR_S1P_H      RGB(150, 30, 30)
-#define CLR_S1P_B1     RGB(200, 60, 60)
-#define CLR_S1P_B2     RGB(225, 100, 100)
-#define CLR_S1P_B3     RGB(240, 150, 150)
+#define CLR_S1P_H         RGB(228, 92, 255)
+#define CLR_S1P_B1        RGB(195, 66, 227)
+#define CLR_S1P_B2        RGB(168, 41, 197)
+#define CLR_S1P_B3        RGB(138, 28, 162)
 
 /* P2 蛇 */
-#define CLR_S2_H       RGB(180, 130, 20)
-#define CLR_S2_B1      RGB(220, 170, 50)
-#define CLR_S2_B2      RGB(240, 200, 90)
-#define CLR_S2_B3      RGB(255, 230, 130)
+#define CLR_S2_H          RGB(255, 196, 70)
+#define CLR_S2_B1         RGB(225, 169, 57)
+#define CLR_S2_B2         RGB(195, 141, 48)
+#define CLR_S2_B3         RGB(160, 115, 35)
 
 /* AI 蛇（紫色） */
-#define CLR_AI_H       RGB(130, 30, 180)
-#define CLR_AI_B1      RGB(160, 50, 210)
-#define CLR_AI_B2      RGB(185, 90, 230)
-#define CLR_AI_B3      RGB(210, 140, 245)
+#define CLR_AI_H          RGB(190, 130, 255)
+#define CLR_AI_B1         RGB(158, 103, 230)
+#define CLR_AI_B2         RGB(128, 84, 198)
+#define CLR_AI_B3         RGB(96, 65, 158)
 
 /* 食物 */
-#define CLR_BLUE_FOOD  RGB(80, 150, 230)
-#define CLR_RED_FOOD   RGB(230, 70, 70)
+#define CLR_BLUE_FOOD     RGB(255, 226, 96)
+#define CLR_BLUE_GLOW     RGB(255, 246, 173)
+#define CLR_RED_FOOD      RGB(255, 94, 102)
+#define CLR_RED_GLOW      RGB(255, 150, 160)
 
 /* 道具 */
-#define CLR_TURBO      RGB(255, 220, 0)
-#define CLR_TURBO_EDGE RGB(255, 255, 150)
-#define CLR_SHIELD     RGB(60, 140, 230)
-#define CLR_SHIELD_EDGE RGB(100, 200, 255)
-#define CLR_SLOW       RGB(160, 60, 200)
-#define CLR_SLOW_EDGE  RGB(220, 80, 80)   /* 警告红框 */
-#define CLR_MAGNET     RGB(220, 70, 60)
-#define CLR_MAGNET_EDGE RGB(180, 40, 30)
-#define CLR_FREEZE     RGB(100, 200, 230)
-#define CLR_FREEZE_EDGE RGB(200, 240, 255)
-#define CLR_SHRINK     RGB(180, 50, 50)
-#define CLR_SHRINK_EDGE RGB(220, 80, 80)  /* 警告红框 */
-#define CLR_GHOST      RGB(230, 230, 250)
-#define CLR_GHOST_EDGE RGB(150, 180, 220)
-#define CLR_DOUBLE     RGB(255, 200, 0)
-#define CLR_DOUBLE_EDGE RGB(255, 240, 150)
-#define CLR_NEG_BORDER RGB(220, 60, 60)
+#define CLR_TURBO         RGB(255, 214, 60)
+#define CLR_TURBO_EDGE    RGB(255, 246, 168)
+#define CLR_SHIELD        RGB(84, 197, 255)
+#define CLR_SHIELD_EDGE   RGB(171, 230, 255)
+#define CLR_SLOW          RGB(200, 119, 255)
+#define CLR_SLOW_EDGE     RGB(230, 110, 110)
+#define CLR_MAGNET        RGB(255, 131, 107)
+#define CLR_MAGNET_EDGE   RGB(255, 188, 168)
+#define CLR_FREEZE        RGB(138, 229, 255)
+#define CLR_FREEZE_EDGE   RGB(220, 244, 255)
+#define CLR_SHRINK        RGB(255, 118, 118)
+#define CLR_SHRINK_EDGE   RGB(255, 110, 110)
+#define CLR_GHOST         RGB(230, 230, 255)
+#define CLR_GHOST_EDGE    RGB(180, 196, 255)
+#define CLR_DOUBLE        RGB(255, 214, 89)
+#define CLR_DOUBLE_EDGE   RGB(255, 239, 184)
+#define CLR_NEG_BORDER    RGB(255, 120, 130)
 
 /* 文字 */
-#define CLR_TITLE      RGB(255, 255, 255)
-#define CLR_TEXT       RGB(230, 230, 230)
-#define CLR_GOLD       RGB(255, 200, 0)
-#define CLR_HINT       RGB(180, 180, 180)
+#define CLR_TITLE         RGB(243, 252, 255)
+#define CLR_TEXT          RGB(229, 235, 248)
+#define CLR_GOLD          RGB(255, 215, 93)
+#define CLR_HINT          RGB(168, 185, 217)
 
-/* 菜单边框 */
-#define CLR_BORDER     RGB(160, 95, 50)
-#define CLR_BORDER_IN  RGB(110, 65, 30)
-#define CLR_BORDER_HI  RGB(195, 130, 75)
+/* 按钮边框 */
+#define CLR_BORDER        RGB(83, 101, 141)
+#define CLR_BORDER_IN     RGB(34, 47, 72)
+#define CLR_BORDER_HI     RGB(121, 160, 255)
+
+/* 字体 */
+#define FONT_TITLE _T("Microsoft YaHei")
+#define FONT_UI    _T("Microsoft YaHei")
+#define FONT_MONO  _T("Consolas")
+#define FONT_SCALE(sz) (((sz) * 6 / 5) + 1)
 
 /* ===================================================
  *  内部绘制辅助
@@ -117,52 +135,125 @@ static void drawTextCenter(int x, int y, int w, int h, LPCTSTR text, COLORREF co
     drawtext(text, &r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 }
 
+static int clampi(int v, int lo, int hi)
+{
+    if (v < lo) return lo;
+    if (v > hi) return hi;
+    return v;
+}
+
+static COLORREF blendColor(COLORREF src, COLORREF dst, float t)
+{
+    int sr = GetRValue(src);
+    int sg = GetGValue(src);
+    int sb = GetBValue(src);
+    int dr = GetRValue(dst);
+    int dg = GetGValue(dst);
+    int db = GetBValue(dst);
+
+    if (t <= 0.0f) return src;
+    if (t >= 1.0f) return dst;
+
+    return RGB(
+        clampi(sr + (int)((dr - sr) * t), 0, 255),
+        clampi(sg + (int)((dg - sg) * t), 0, 255),
+        clampi(sb + (int)((db - sb) * t), 0, 255)
+    );
+}
+
+static COLORREF boardGlowAt(const COLORREF baseColor, int x, int y, int cx, int cy, int maxDist)
+{
+    float dx = (float)(x - cx);
+    float dy = (float)(y - cy);
+    float d = sqrtf(dx * dx + dy * dy);
+    float k = 1.0f - d / (float)maxDist;
+
+    if (k < 0.0f) k = 0.0f;
+    if (k > 1.0f) k = 1.0f;
+    k = 0.05f + 0.12f * (k * k);
+
+    return blendColor(baseColor, RGB(230, 250, 255), k);
+}
+
 static void drawCheckerboard(void)
 {
-    setfillcolor(CLR_BG);
-    setlinecolor(CLR_BG);
-    solidrectangle(0, 0, WIN_W + 1, WIN_H + 1);
+    int y;
+
+    for (y = 0; y < WIN_H; y += 8) {
+        int top = y * 3 / WIN_H;
+        int r = GetRValue(CLR_BG_DARK) - 4 - top;
+        int g = GetGValue(CLR_BG_DARK) + top * 2;
+        int b = GetBValue(CLR_BG) + top * 3;
+
+        if (r < 0) r = 0;
+        if (g > 255) g = 255;
+        if (g < 0) g = 0;
+        if (b > 255) b = 255;
+        if (b < 0) b = 0;
+
+        setfillcolor(RGB(r, g, b));
+        solidrectangle(0, y, WIN_W, y + 8);
+    }
 }
 
 static void drawMapChecker(int ox, int oy, int mapSize)
 {
     int x, y;
-    setfillcolor(CLR_GRID_BASE);
-    solidrectangle(ox, oy, ox + mapSize * CELL_PX, oy + mapSize * CELL_PX);
+    int mapPx = mapSize * CELL_PX;
+    int cx = ox + mapPx / 2;
+    int cy = oy + mapPx / 2;
+    int maxDist = (int)(sqrtf((float)(mapPx * mapPx) * 0.5f) + 1);
+    COLORREF sepColor;
 
-    setlinecolor(CLR_GRID_LINE);
+    for (y = 0; y < mapSize; y++) {
+        for (x = 0; x < mapSize; x++) {
+            int left = ox + x * CELL_PX;
+            int top = oy + y * CELL_PX;
+            int cellCx = left + CELL_PX / 2;
+            int cellCy = top + CELL_PX / 2;
+            COLORREF fill = boardGlowAt(CLR_BOARD_BASE, cellCx, cellCy, cx, cy, maxDist);
+
+            setfillcolor(fill);
+            solidrectangle(left, top, left + CELL_PX, top + CELL_PX);
+        }
+    }
+
+    sepColor = blendColor(CLR_PANEL_GLOW, RGB(8, 28, 68), 0.22f);
+    setlinecolor(sepColor);
     setlinestyle(PS_SOLID, 1);
-    for (x = 1; x < mapSize; x++)
-        line(ox + x * CELL_PX, oy, ox + x * CELL_PX, oy + mapSize * CELL_PX);
-    for (y = 1; y < mapSize; y++)
-        line(ox, oy + y * CELL_PX, ox + mapSize * CELL_PX, oy + y * CELL_PX);
+
+    for (x = 1; x < mapSize; x++) {
+        line(ox + x * CELL_PX, oy + 1, ox + x * CELL_PX, oy + mapPx - 1);
+    }
+    for (y = 1; y < mapSize; y++) {
+        line(ox + 1, oy + y * CELL_PX, ox + mapPx - 1, oy + y * CELL_PX);
+    }
 }
 
 static void drawWoodFrame(int ox, int oy, int mapSize)
 {
-    int frameThick = 14;
+    int frameThick = 12;
     int x1 = ox - frameThick;
     int y1 = oy - frameThick;
     int x2 = ox + mapSize * CELL_PX + frameThick;
     int y2 = oy + mapSize * CELL_PX + frameThick;
 
-    setfillcolor(CLR_WOOD);
+    setfillcolor(CLR_BOARD_EDGE_DN);
     solidrectangle(x1, y1, x2, oy);
     solidrectangle(x1, oy + mapSize * CELL_PX, x2, y2);
     solidrectangle(x1, oy, ox, oy + mapSize * CELL_PX);
     solidrectangle(ox + mapSize * CELL_PX, oy, x2, oy + mapSize * CELL_PX);
 
-    setlinecolor(CLR_WOOD_LIGHT);
-    setlinestyle(PS_SOLID, 1);
-    line(x1, y1, x2 - 1, y1);
-    line(x1, y1, x1, y2 - 1);
+    setfillcolor(CLR_BOARD_EDGE);
+    solidrectangle(x1 + 2, y1 + 2, x2 - 2, y2 - 2);
 
-    setlinecolor(CLR_WOOD_DARK);
-    line(x1, y2 - 1, x2 - 1, y2 - 1);
-    line(x2 - 1, y1, x2 - 1, y2 - 1);
+    setfillcolor(CLR_PANEL);
+    solidrectangle(ox, oy, ox + mapSize * CELL_PX, oy + mapSize * CELL_PX);
 
-    setlinecolor(CLR_WOOD_DARK);
+    setlinecolor(CLR_BOARD_EDGE_DN);
     rectangle(ox - 1, oy - 1, ox + mapSize * CELL_PX, oy + mapSize * CELL_PX);
+    setlinecolor(CLR_PANEL_LINE);
+    rectangle(ox - frameThick, oy - frameThick, x2, y2);
 }
 
 static void drawPixelBorder(int x, int y, int w, int h, COLORREF outer, COLORREF inner)
@@ -175,9 +266,12 @@ static void drawPixelBorder(int x, int y, int w, int h, COLORREF outer, COLORREF
 
 static void drawPixelPanel(int x, int y, int w, int h, COLORREF fill)
 {
+    setfillcolor(CLR_PANEL_DK);
+    solidrectangle(x - 2, y - 2, x + w + 2, y + h + 2);
+    setfillcolor(CLR_PANEL_LINE);
+    solidrectangle(x, y, x + w, y + h);
     setfillcolor(fill);
-    solidrectangle(x + 3, y + 3, x + w - 3, y + h - 3);
-    drawPixelBorder(x, y, w, h, CLR_BORDER, CLR_BORDER_IN);
+    solidrectangle(x + 2, y + 2, x + w - 2, y + h - 2);
 }
 
 static void drawPixelSnakeHead(int left, int top, COLORREF headColor, int dir)
@@ -206,24 +300,81 @@ static void drawPixelObs(int left, int top)
     solidrectangle(left + pad, top + pad, left + CELL_PX - pad, top + CELL_PX - pad);
 }
 
-static void drawPixelBlueFood(int left, int top)
+static void drawPixelGemFood(int left, int top, COLORREF fill, COLORREF glow, COLORREF ambient)
 {
     int cx = left + CELL_PX / 2;
     int cy = top + CELL_PX / 2;
-    int r = CELL_PX / 2 - 5;
-    setfillcolor(CLR_BLUE_FOOD);
-    setlinecolor(CLR_BLUE_FOOD);
-    solidcircle(cx, cy, r);
+    int outer = CELL_PX / 2 - 2;
+    int inner = CELL_PX / 2 - 5;
+    int i;
+    int radius;
+    POINT outPts[4];
+    POINT inPts[4];
+
+    for (i = 0; i < 4; i++) {
+        radius = outer + 2 + i;
+        COLORREF haloColor = blendColor(ambient, glow, 0.78f - i * 0.18f);
+
+        setfillcolor(haloColor);
+        setlinecolor(haloColor);
+        solidcircle(cx, cy, radius);
+    }
+
+    outPts[0].x = cx;
+    outPts[0].y = cy - outer;
+    outPts[1].x = cx + outer;
+    outPts[1].y = cy;
+    outPts[2].x = cx;
+    outPts[2].y = cy + outer;
+    outPts[3].x = cx - outer;
+    outPts[3].y = cy;
+
+    inPts[0].x = cx;
+    inPts[0].y = cy - inner;
+    inPts[1].x = cx + inner;
+    inPts[1].y = cy;
+    inPts[2].x = cx;
+    inPts[2].y = cy + inner;
+    inPts[3].x = cx - inner;
+    inPts[3].y = cy;
+
+    setlinecolor(blendColor(fill, RGB(255, 255, 255), 0.18f));
+    setfillcolor(blendColor(fill, RGB(255, 255, 255), 0.35f));
+    solidpolygon(outPts, 4);
+
+    setlinecolor(blendColor(fill, RGB(0, 0, 0), 0.12f));
+    setfillcolor(fill);
+    solidpolygon(inPts, 4);
+
+    setlinecolor(blendColor(fill, RGB(255, 255, 255), 0.45f));
+    line(cx - inner + 2, cy, cx, cy - inner + 3);
+    line(cx, cy - inner + 3, cx + inner - 2, cy);
+    line(cx + inner - 2, cy, cx, cy + inner - 3);
+    line(cx, cy + inner - 3, cx - inner + 2, cy);
+
+    setlinecolor(blendColor(fill, RGB(0, 0, 0), 0.35f));
+    line(cx - inner + 2, cy + 2, cx + inner - 2, cy + 2);
+
+    setlinecolor(fill);
+    setfillcolor(blendColor(fill, RGB(255, 255, 255), 0.32f));
+    POINT spark[3];
+    spark[0].x = cx;
+    spark[0].y = cy - outer + 2;
+    spark[1].x = cx - 1;
+    spark[1].y = cy;
+    spark[2].x = cx;
+    spark[2].y = cy + 2;
+    solidpolygon(spark, 3);
 }
 
-static void drawPixelRedFood(int left, int top)
+static void drawPixelBlueFood(int left, int top, COLORREF ambient)
 {
-    int cx = left + CELL_PX / 2;
-    int cy = top + CELL_PX / 2;
-    int r = CELL_PX / 2 - 5;
-    setfillcolor(CLR_RED_FOOD);
-    setlinecolor(CLR_RED_FOOD);
-    solidcircle(cx, cy, r);
+    drawPixelGemFood(left, top, CLR_BLUE_FOOD, CLR_BLUE_GLOW, ambient);
+}
+
+static void drawPixelRedFood(int left, int top, COLORREF ambient)
+{
+    drawPixelGemFood(left, top, CLR_RED_FOOD, CLR_RED_GLOW, ambient);
 }
 
 /* 绘制道具 — 彩色圆 + 字母标识 + 区分边框 */
@@ -263,7 +414,7 @@ static void drawPixelItem(int left, int top, int itemType)
     /* 内圈字母 */
     setbkmode(TRANSPARENT);
     settextcolor(itemIsNegative(itemType) ? CLR_NEG_BORDER : RGB(255, 255, 255));
-    settextstyle(14, 0, _T("Microsoft YaHei"));
+    settextstyle(FONT_SCALE(14), 0, _T("Microsoft YaHei"));
     {
         RECT rect = { left, top, left + CELL_PX, top + CELL_PX };
         drawtext(symbol, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
@@ -280,7 +431,7 @@ static void drawFloatTexts(const GameState *g, int ox, int oy)
         if (ft->life > 0.0f) {
             int alpha = (int)(ft->life * 212.0f);  /* 淡出 */
             if (alpha > 255) alpha = 255;
-            settextstyle(16, 0, _T("Consolas"));
+            settextstyle(FONT_SCALE(16), 0, _T("Consolas"));
             setbkmode(TRANSPARENT);
             settextcolor(RGB(
                 (GetRValue(ft->color) * alpha) / 255,
@@ -300,12 +451,12 @@ static void drawAchNotification(const GameState *g)
 {
     if (g->achNewUnlock) {
         int i, y = 80;
-        settextstyle(22, 0, _T("Microsoft YaHei"));
+        settextstyle(FONT_SCALE(22), 0, _T("Microsoft YaHei"));
         setbkmode(TRANSPARENT);
         for (i = 0; i < ACH_MAX; i++) {
             if (g->achNewUnlock & (1u << i)) {
                 TCHAR buf[64];
-                _stprintf(buf, _T("🏆 成就解锁: %s!"), achName(i));
+                _stprintf(buf, _T("成就解锁: %s!"), achName(i));
                 settextcolor(CLR_GOLD);
                 outtextxy(WIN_W / 2 - 120, y, buf);
                 y += 26;
@@ -318,71 +469,83 @@ static void drawEffectIndicators(const GameState *g, int player, int startX, int
 {
     TCHAR buf[32];
     int y = startY;
+    int count = 0;
 
-    settextstyle(14, 0, _T("Microsoft YaHei"));
+    settextstyle(FONT_SCALE(13), 0, FONT_UI);
 
     if (itemHasEffect(g, player, EFF_TURBO)) {
         settextcolor(CLR_TURBO);
-        _stprintf(buf, _T("⚡极速 %.0fs"), itemTimer(g, player, EFF_TURBO));
+        _stprintf(buf, _T("极速: %.0fs"), itemTimer(g, player, EFF_TURBO));
         outtextxy(startX, y, buf);
-        y += 20;
-    }
-    if (itemShieldCount(g, player) > 0) {
-        settextcolor(CLR_SHIELD);
-        _stprintf(buf, _T("🛡 护盾 x%d"), itemShieldCount(g, player));
-        outtextxy(startX, y, buf);
-        y += 20;
+        y += 18;
+        count++;
     }
     if (itemHasEffect(g, player, EFF_SLOW)) {
         settextcolor(CLR_SLOW);
-        _stprintf(buf, _T("🐌减速 %.0fs"), itemTimer(g, player, EFF_SLOW));
+        _stprintf(buf, _T("减速: %.0fs"), itemTimer(g, player, EFF_SLOW));
         outtextxy(startX, y, buf);
-        y += 20;
+        y += 18;
+        count++;
     }
     if (itemHasEffect(g, player, EFF_MAGNET)) {
         settextcolor(CLR_MAGNET);
-        _stprintf(buf, _T("🧲磁铁 %.0fs"), itemTimer(g, player, EFF_MAGNET));
+        _stprintf(buf, _T("磁铁: %.0fs"), itemTimer(g, player, EFF_MAGNET));
         outtextxy(startX, y, buf);
-        y += 20;
+        y += 18;
+        count++;
     }
     if (itemHasEffect(g, player, EFF_GHOST)) {
-        settextcolor(CLR_GHOST_EDGE);
-        _stprintf(buf, _T("👻穿墙 %.0fs"), itemTimer(g, player, EFF_GHOST));
+        settextcolor(CLR_GHOST);
+        _stprintf(buf, _T("穿墙: %.0fs"), itemTimer(g, player, EFF_GHOST));
         outtextxy(startX, y, buf);
-        y += 20;
+        y += 18;
+        count++;
     }
     if (itemHasEffect(g, player, EFF_DOUBLE)) {
         settextcolor(CLR_DOUBLE);
-        _stprintf(buf, _T("x2得分 %.0fs"), itemTimer(g, player, EFF_DOUBLE));
+        _stprintf(buf, _T("x2: %.0fs"), itemTimer(g, player, EFF_DOUBLE));
         outtextxy(startX, y, buf);
-        y += 20;
+        y += 18;
+        count++;
     }
     if (itemHasEffect(g, player, EFF_FROZEN)) {
         settextcolor(CLR_FREEZE);
-        _stprintf(buf, _T("❄冻结! %.0fs"), itemTimer(g, player, EFF_FROZEN));
+        _stprintf(buf, _T("冻结: %.0fs"), itemTimer(g, player, EFF_FROZEN));
+        outtextxy(startX, y, buf);
+        y += 18;
+        count++;
+    }
+    if (itemShieldCount(g, player) > 0) {
+        settextcolor(CLR_SHIELD);
+        _stprintf(buf, _T("护盾 x%d"), itemShieldCount(g, player));
+        outtextxy(startX, y, buf);
+        y += 18;
+        count++;
+    }
+
+    if (count == 0) {
+        settextcolor(CLR_HINT);
+        _stprintf(buf, _T("无状态"));
         outtextxy(startX, y, buf);
     }
 }
 
 static void drawPixelButton(int index, LPCTSTR text, int hover)
 {
-    int x = WIN_W / 2 - 130;
-    int y = 200 + index * 55;
-    int w = 260;
-    int h = 50;
+    int x = MENU_BTN_X;
+    int y = MENU_BTN_START_Y + (index - 1) * MENU_BTN_GAP;
+    int w = MENU_BTN_W;
+    int h = MENU_BTN_H;
 
-    COLORREF bgColor = hover ? RGB(95, 95, 95) : RGB(70, 70, 70);
-    setfillcolor(bgColor);
-    solidrectangle(x + 3, y + 3, x + w - 3, y + h - 3);
+    COLORREF border = hover ? CLR_BORDER_HI : CLR_BORDER;
+    COLORREF fill = hover ? CLR_PANEL_SOFT : CLR_PANEL;
 
-    setfillcolor(hover ? RGB(120, 120, 120) : RGB(95, 95, 95));
-    solidrectangle(x + 4, y + 4, x + w - 4, y + 9);
+    drawPixelPanel(x, y, w, h, fill);
+    setlinecolor(border);
+    rectangle(x + 2, y + 2, x + w - 2, y + h - 2);
 
-    if (hover) drawPixelBorder(x, y, w, h, CLR_BORDER_HI, RGB(140, 140, 140));
-    else drawPixelBorder(x, y, w, h, CLR_BORDER, CLR_BORDER_IN);
-
-    settextstyle(22, 0, _T("Microsoft YaHei"));
-    drawTextCenter(x, y, w, h, text, hover ? RGB(255, 255, 255) : CLR_TEXT);
+    settextstyle(FONT_SCALE(24), 0, FONT_UI);
+    drawTextCenter(x, y, w, h, text, hover ? CLR_PANEL_GLOW : CLR_TEXT);
 }
 
 static void mapOrigin(const GameState *g, int *ox, int *oy)
@@ -466,8 +629,8 @@ static COLORREF getAIBodyColor(int index, int len)
 static LPCTSTR colorName(int snakeColor)
 {
     snakeColor = normalizeSnakeColor(snakeColor);
-    if (snakeColor == SNAKE_COLOR_BLUE) return _T("蓝色");
-    if (snakeColor == SNAKE_COLOR_PURPLE) return _T("红色");
+    if (snakeColor == SNAKE_COLOR_BLUE) return _T("橙色");
+    if (snakeColor == SNAKE_COLOR_PURPLE) return _T("紫色");
     return _T("绿色");
 }
 
@@ -495,16 +658,29 @@ static void drawTextLeft(int x, int y, LPCTSTR text, COLORREF color)
 
 static void drawOverlayPanel(int x, int y, int w, int h)
 {
-    setfillcolor(CLR_WOOD);
-    solidrectangle(x - 3, y - 3, x + w + 3, y + h + 3);
-    setfillcolor(CLR_WOOD_LIGHT);
-    solidrectangle(x - 3, y - 3, x + w + 3, y - 1);
-    solidrectangle(x - 3, y - 3, x - 1, y + h + 3);
-    setfillcolor(CLR_WOOD_DARK);
-    solidrectangle(x - 3, y + h + 1, x + w + 3, y + h + 3);
-    solidrectangle(x + w + 1, y - 3, x + w + 3, y + h + 3);
-    setfillcolor(RGB(35, 35, 35));
-    solidrectangle(x, y, x + w, y + h);
+    drawPixelPanel(x, y, w, h, CLR_PANEL_SOFT);
+    setlinecolor(CLR_PANEL_GLOW);
+    line(x + 6, y + h + 1, x + w - 6, y + h + 1);
+}
+
+static void drawInfoPanel(int x, int y, int w, int h, LPCTSTR title, LPCTSTR content, COLORREF titleColor)
+{
+    drawPixelPanel(x, y, w, h, CLR_PANEL_INNER);
+
+    if (title && *title) {
+        settextstyle(FONT_SCALE(16), 0, FONT_UI);
+        setbkmode(TRANSPARENT);
+        settextcolor(titleColor);
+        outtextxy(x + 12, y + 8, title);
+        setlinecolor(CLR_PANEL_LINE);
+        line(x + 10, y + 28, x + w - 10, y + 28);
+    }
+
+    if (content && *content) {
+        settextstyle(FONT_SCALE(14), 0, FONT_UI);
+        settextcolor(CLR_TEXT);
+        outtextxy(x + 12, y + 48, content);
+    }
 }
 
 static int s_deadBtnX = 0, s_deadBtnW = 0, s_deadBtnH = 28, s_deadBtnLineH = 32;
@@ -522,7 +698,7 @@ static void drawKeyHintsVertical(int px, int pw, int startY, int hoverIndex)
     s_deadBtnLineH = 32;
     for (i = 0; i < 3; i++) s_deadBtnY[i] = startY + i * s_deadBtnLineH;
 
-    settextstyle(20, 0, _T("Microsoft YaHei"));
+    settextstyle(FONT_SCALE(20), 0, _T("Microsoft YaHei"));
     for (i = 0; i < 3; i++) {
         if (hoverIndex == i + 1) {
             setfillcolor(RGB(60, 60, 60));
@@ -548,44 +724,57 @@ int gfxHitDeadButton(int mx, int my)
 static void drawMapAt(const GameState *g, int ox, int oy)
 {
     int x, y, mapSize;
+    int mapPx;
     mapSize = normalizeMapSize(g->mapSize);
+    mapPx = mapSize * CELL_PX;
 
     drawWoodFrame(ox, oy, mapSize);
     drawMapChecker(ox, oy, mapSize);
 
-    for (y = 0; y < mapSize; y++) {
-        for (x = 0; x < mapSize; x++) {
-            int left = ox + x * CELL_PX;
-            int top = oy + y * CELL_PX;
-            int cell = g->grid[y][x];
+    {
+        int mapRadius = (int)(sqrtf((float)(mapPx * mapPx) * 0.5f) + 1);
+        int mapCx = ox + mapPx / 2;
+        int mapCy = oy + mapPx / 2;
 
-            if (cell == CELL_WALL) {
-                setfillcolor(CLR_WOOD);
-                solidrectangle(left, top, left + CELL_PX, top + CELL_PX);
-            } else if (cell == CELL_OBS) {
-                drawPixelObs(left, top);
-            } else if (cell == CELL_BLUE) {
-                drawPixelBlueFood(left, top);
-            } else if (cell == CELL_RED) {
-                drawPixelRedFood(left, top);
-            } else if (cell == CELL_SNAKE) {
-                int idx = snakeBodyIndex(&g->snake, x, y);
-                if (idx == 0) drawPixelSnakeHead(left, top, getP1HeadColor(g->config.snakeColor), g->snake.dir);
-                else if (idx > 0) drawPixelSnakeBody(left, top, getP1BodyColor(idx, g->snake.len, g->config.snakeColor));
-            } else if (cell == CELL_SNAKE2) {
-                int idx = snakeBodyIndex(&g->snake2, x, y);
-                if (idx == 0) drawPixelSnakeHead(left, top, CLR_S2_H, g->snake2.dir);
-                else if (idx > 0) drawPixelSnakeBody(left, top, getP2BodyColor(idx, g->snake2.len));
-            } else if (cell == CELL_AI) {
-                int idx = aiBodyIndex(g, x, y);
-                if (idx == 0) drawPixelSnakeHead(left, top, CLR_AI_H, DIR_UP);
-                else if (idx > 0) drawPixelSnakeBody(left, top, getAIBodyColor(idx, MAX_LEN));
+        for (y = 0; y < mapSize; y++) {
+            for (x = 0; x < mapSize; x++) {
+                int left = ox + x * CELL_PX;
+                int top = oy + y * CELL_PX;
+                int cellCx = left + CELL_PX / 2;
+                int cellCy = top + CELL_PX / 2;
+                int cell = g->grid[y][x];
+                COLORREF tileBg = boardGlowAt(CLR_BOARD_BASE, cellCx, cellCy, mapCx, mapCy, mapRadius);
+
+                if (cell == CELL_WALL) {
+                    setfillcolor(CLR_WALL);
+                    setlinecolor(CLR_WALL_LINE);
+                    solidrectangle(left, top, left + CELL_PX, top + CELL_PX);
+                    rectangle(left, top, left + CELL_PX, top + CELL_PX);
+                } else if (cell == CELL_OBS) {
+                    drawPixelObs(left, top);
+                } else if (cell == CELL_BLUE) {
+                    drawPixelBlueFood(left, top, tileBg);
+                } else if (cell == CELL_RED) {
+                    drawPixelRedFood(left, top, tileBg);
+                } else if (cell == CELL_SNAKE) {
+                    int idx = snakeBodyIndex(&g->snake, x, y);
+                    if (idx == 0) drawPixelSnakeHead(left, top, getP1HeadColor(g->config.snakeColor), g->snake.dir);
+                    else if (idx > 0) drawPixelSnakeBody(left, top, getP1BodyColor(idx, g->snake.len, g->config.snakeColor));
+                } else if (cell == CELL_SNAKE2) {
+                    int idx = snakeBodyIndex(&g->snake2, x, y);
+                    if (idx == 0) drawPixelSnakeHead(left, top, CLR_S2_H, g->snake2.dir);
+                    else if (idx > 0) drawPixelSnakeBody(left, top, getP2BodyColor(idx, g->snake2.len));
+                } else if (cell == CELL_AI) {
+                    int idx = aiBodyIndex(g, x, y);
+                    if (idx == 0) drawPixelSnakeHead(left, top, CLR_AI_H, DIR_UP);
+                    else if (idx > 0) drawPixelSnakeBody(left, top, getAIBodyColor(idx, MAX_LEN));
+                }
             }
         }
     }
 
     /* 绘制场上道具 */
-    if (g->itemOnField != ITEM_NONE) {
+    if (g->config.itemMode == GAMEPLAY_ITEM && g->itemOnField != ITEM_NONE) {
         int ileft = ox + g->itemPos.x * CELL_PX;
         int itop = oy + g->itemPos.y * CELL_PX;
         drawPixelItem(ileft, itop, g->itemOnField);
@@ -604,93 +793,117 @@ static void drawGameContent(const GameState *g)
     cleardevice();
     drawCheckerboard();
 
-    settextstyle(18, 0, _T("Microsoft YaHei"));
     if (g->gameMode == MODE_DUAL || g->gameMode == MODE_DUAL_TIMED) {
-        _stprintf(buf, _T("P1: %d"), g->score);
-        drawTextLeft(20, 24, buf, CLR_TEXT);
-        _stprintf(buf, _T("P2: %d"), g->score2);
-        drawTextLeft(140, 24, buf, CLR_TEXT);
-        drawTextLeft(280, 24, difficultyName(g->difficulty), CLR_TEXT);
+        drawInfoPanel(20, 12, 270, 92, _T("P1"), NULL, CLR_PANEL_GLOW);
+        settextstyle(FONT_SCALE(16), 0, FONT_UI);
+        settextcolor(CLR_TEXT);
+        _stprintf(buf, _T("得分: %d"), g->score);
+        outtextxy(36, 42, buf);
         if (g->gameMode == MODE_DUAL_TIMED) {
-            int mins = (int)g->matchTimer / 60;
-            int secs = (int)g->matchTimer % 60;
-            _stprintf(buf, _T("⏱ %d:%02d"), mins, secs);
-            drawTextLeft(WIN_W - 100, 24, buf,
-                g->matchTimer <= 10.0f ? CLR_RED_FOOD : CLR_GOLD);
+            _stprintf(buf, _T("时间: %d:%02d"), (int)(g->matchTimer / 60), (int)g->matchTimer % 60);
+            outtextxy(36, 64, buf);
+        }
+
+        drawInfoPanel(810, 12, 270, 92, _T("P2"), NULL, CLR_PANEL_GLOW);
+        settextstyle(FONT_SCALE(16), 0, FONT_UI);
+        settextcolor(CLR_TEXT);
+        _stprintf(buf, _T("得分: %d"), g->score2);
+        outtextxy(826, 42, buf);
+        if (g->gameMode == MODE_DUAL_TIMED) {
+            _stprintf(buf, _T("倒计时: %d:%02d"), (int)(g->matchTimer / 60), (int)g->matchTimer % 60);
+            outtextxy(826, 64, buf);
         }
     } else {
+        drawInfoPanel(20, 12, 320, 92, _T("游戏信息"), NULL, CLR_PANEL_GLOW);
+        settextstyle(FONT_SCALE(16), 0, FONT_UI);
+        settextcolor(CLR_TEXT);
         _stprintf(buf, _T("得分: %d"), g->score);
-        drawTextLeft(20, 24, buf, CLR_TEXT);
+        outtextxy(36, 42, buf);
         _stprintf(buf, _T("最高: %d"), g->highScore);
-        drawTextLeft(140, 24, buf, CLR_TEXT);
-        drawTextLeft(280, 24, difficultyName(g->difficulty), CLR_TEXT);
+        outtextxy(36, 64, buf);
     }
+
+    drawInfoPanel(WIN_W - 190, 12, 180, 92, _T("难度/地图"), NULL, CLR_PANEL_GLOW);
+    settextstyle(FONT_SCALE(16), 0, FONT_UI);
+    settextcolor(CLR_TEXT);
+    _stprintf(buf, _T("难度: %s"), difficultyName(g->difficulty));
+    outtextxy(WIN_W - 174, 42, buf);
+    _stprintf(buf, _T("地图: %dx%d"), mapSize, mapSize);
+    outtextxy(WIN_W - 174, 64, buf);
 
     drawMapAt(g, ox, oy);
 
-    /* 效果指示器 */
     if (g->gameMode == MODE_DUAL || g->gameMode == MODE_DUAL_TIMED) {
-        drawEffectIndicators(g, 0, WIN_W - 160, 24);
-        drawEffectIndicators(g, 1, 20, 56);
+        drawEffectIndicators(g, 0, 830, 112);
+        drawEffectIndicators(g, 1, 28, 112);
     } else {
-        drawEffectIndicators(g, 0, WIN_W - 160, 24);
+        drawEffectIndicators(g, 0, WIN_W - 184, 112);
     }
 
     if (g->hasRed) {
-        int barX = WIN_W - 140;
-        int barY = 28;
-        int barW = 120;
+        int barX = WIN_W - 184;
+        int barY = 116;
+        int barW = 156;
         int barH = 10;
         int filledW = (int)((float)barW * g->redTimer / (float)RED_TIMER_MAX);
+
         if (filledW < 0) filledW = 0;
-        setfillcolor(RGB(70, 70, 70));
+        if (filledW > barW) filledW = barW;
+        settextstyle(FONT_SCALE(14), 0, FONT_UI);
+        settextcolor(CLR_TEXT);
+        outtextxy(barX, barY - 14, _T("红色食物"));
+        setfillcolor(CLR_PANEL_DK);
         solidrectangle(barX, barY, barX + barW, barY + barH);
         setfillcolor(CLR_RED_FOOD);
         solidrectangle(barX, barY, barX + filledW, barY + barH);
     }
 
-    settextstyle(15, 0, _T("Microsoft YaHei"));
+    settextstyle(FONT_SCALE(15), 0, FONT_UI);
     if (g->gameMode == MODE_DUAL || g->gameMode == MODE_DUAL_TIMED) {
-        drawTextLeft(20, WIN_H - 28, _T("P1:WASD+J  P2:方向键+0  捡道具   P暂停  Q退出"), CLR_HINT);
+        drawTextLeft(20, WIN_H - 28, _T("P1:WASD+J  P2:方向键+0  P:暂停  Q:退出"), CLR_HINT);
     } else if (g->gameMode == MODE_DUAL_MIRROR) {
         /* 镜像模式底部提示由 gfxDrawMirrorGame 绘制 */
     } else if (g->gameMode == MODE_SURVIVAL) {
-        drawTextLeft(20, WIN_H - 28, _T("WASD移动   J加速   捡道具   生存中..."), CLR_HINT);
+        if (g->config.itemMode == GAMEPLAY_ITEM)
+            drawTextLeft(20, WIN_H - 28, _T("WASD移动  J:加速  道具:靠近自动拾取  生存中"), CLR_HINT);
+        else
+            drawTextLeft(20, WIN_H - 28, _T("WASD移动  J:加速  生存中"), CLR_HINT);
     } else {
-        drawTextLeft(20, WIN_H - 28, _T("WASD移动   J加速   捡道具   P暂停   Q退出"), CLR_HINT);
+        if (g->config.itemMode == GAMEPLAY_ITEM)
+            drawTextLeft(20, WIN_H - 28, _T("WASD移动  J:加速  道具:靠近自动拾取  P:暂停  Q:退出"), CLR_HINT);
+        else
+            drawTextLeft(20, WIN_H - 28, _T("WASD移动  J:加速  P:暂停  Q:退出"), CLR_HINT);
     }
 
-    /* 飘字 */
     drawFloatTexts(g, ox, oy);
-    /* 连击显示 */
     if (comboCount(g) >= 2) {
         TCHAR cbuf[32];
-        _stprintf(cbuf, _T("COMBO x%d!"), comboCount(g));
-        settextstyle(22, 0, _T("Microsoft YaHei"));
+        _stprintf(cbuf, _T("COMBO x%d !"), comboCount(g));
+        settextstyle(FONT_SCALE(24), 0, FONT_UI);
         settextcolor(CLR_GOLD);
-        outtextxy(WIN_W/2 - 50, 50, cbuf);
+        outtextxy(WIN_W / 2 - 60, 22, cbuf);
     }
-    /* 生存时间 */
+
     if (g->gameMode == MODE_SURVIVAL) {
         TCHAR sbuf[32];
         int m = (int)g->elapsedTime / 60, s = (int)g->elapsedTime % 60;
-        _stprintf(sbuf, _T("⏱ %d:%02d"), m, s);
-        settextstyle(18, 0, _T("Consolas"));
-        settextcolor(CLR_TEXT);
-        outtextxy(WIN_W - 110, 50, sbuf);
+        _stprintf(sbuf, _T("生存 %d:%02d"), m, s);
+        settextstyle(FONT_SCALE(16), 0, FONT_MONO);
+        settextcolor(CLR_PANEL_GLOW);
+        outtextxy(WIN_W - 118, 112, sbuf);
     }
-    /* 成就通知 */
+
     drawAchNotification(g);
 }
 
 void gfxInit(void)
 {
     initgraph(WIN_W, WIN_H);
-    setbkcolor(CLR_BG);
+    setbkcolor(CLR_BG_DARK);
     cleardevice();
-    setfillcolor(CLR_BG);
-    setlinecolor(CLR_BG);
-    solidrectangle(0, 0, WIN_W + 1, WIN_H + 1);
+    setfillcolor(CLR_BG_DARK);
+    setlinecolor(CLR_BG_DARK);
+    solidrectangle(0, 0, WIN_W, WIN_H);
     BeginBatchDraw();
 }
 
@@ -707,22 +920,25 @@ void gfxDrawMenu(const GameState *g, int menuPage, int hoverIndex)
     cleardevice();
     drawCheckerboard();
 
-    settextstyle(60, 0, _T("Microsoft YaHei"));
-    drawTextCenter(0, 40, WIN_W, 80, _T("贪吃蛇"), CLR_GOLD);
+    setfillcolor(CLR_BG_DARK);
+    solidrectangle(0, 0, WIN_W, 120);
 
-    setlinecolor(CLR_BORDER);
-    line(100, 130, WIN_W - 100, 130);
+    drawInfoPanel(160, 20, 780, 86, _T("复古贪吃蛇"), NULL, CLR_PANEL_GLOW);
+    settextstyle(FONT_SCALE(44), 0, FONT_TITLE);
+    settextcolor(CLR_PANEL_GLOW);
+    setbkmode(TRANSPARENT);
+    drawTextCenter(0, 36, WIN_W, 50, _T("贪吃蛇"), CLR_PANEL_GLOW);
 
-    settextstyle(18, 0, _T("Microsoft YaHei"));
+    settextstyle(FONT_SCALE(20), 0, FONT_UI);
+    _stprintf(buf, _T("最高分: %d"), g ? g->highScore : 0);
+    drawTextCenter(0, 80, WIN_W, 24, buf, CLR_TEXT);
 
     if (menuPage == MENU_MAIN) {
-        _stprintf(buf, _T("最高分: %d"), g ? g->highScore : 0);
-        drawTextCenter(0, 150, WIN_W, 30, buf, CLR_GOLD);
-
         drawPixelButton(1, _T("1  单人模式"), hoverIndex == 1);
         drawPixelButton(2, _T("2  双人对战"), hoverIndex == 2);
         drawPixelButton(3, _T("3  生存模式"), hoverIndex == 3);
         drawPixelButton(4, _T("4  设置"), hoverIndex == 4);
+        drawPixelButton(5, _T("5  成就查看"), hoverIndex == 5);
 
         drawTextCenter(0, 520, WIN_W, 30, _T("按 Q 退出"), CLR_HINT);
     }
@@ -755,14 +971,60 @@ void gfxDrawMenu(const GameState *g, int menuPage, int hoverIndex)
         drawPixelButton(3, _T("3  困难"), hoverIndex == 3);
         drawTextCenter(0, 520, WIN_W, 30, _T("P1: WASD  |  P2: 方向键"), CLR_HINT);
     }
-    else {
+    else if (menuPage == MENU_SETTINGS) {
+        int itemMode = g ? g->config.itemMode : GAMEPLAY_ITEM;
+        int aiEnabled = g ? g->config.aiEnabled : 1;
+
         drawTextCenter(0, 150, WIN_W, 30, _T("游戏设置"), CLR_TEXT);
         _stprintf(buf, _T("1  蛇颜色: %s"), colorName(g ? g->config.snakeColor : SNAKE_COLOR_GREEN));
         drawPixelButton(1, buf, hoverIndex == 1);
         _stprintf(buf, _T("2  地图: %s"), mapSizeName(g ? g->config.mapSize : MAP_SIZE_LARGE));
         drawPixelButton(2, buf, hoverIndex == 2);
-        drawPixelButton(3, _T("3  返回"), hoverIndex == 3);
-        drawTextCenter(0, 520, WIN_W, 30, _T("自动保存"), CLR_HINT);
+        _stprintf(buf, _T("3  玩法: %s"), itemMode == GAMEPLAY_ITEM ? _T("道具版") : _T("经典版"));
+        drawPixelButton(3, buf, hoverIndex == 3);
+        _stprintf(buf, _T("4  AI敌人: %s"), aiEnabled ? _T("开启") : _T("关闭"));
+        drawPixelButton(4, buf, hoverIndex == 4);
+        drawTextCenter(0, 520, WIN_W, 30, _T("M 返回"), CLR_HINT);
+    }
+    else if (menuPage == MENU_ACHIEVEMENTS) {
+        int i;
+        int unlocked = 0;
+        int y = 170;
+        TCHAR status[12];
+
+        if (g) {
+            for (i = 0; i < ACH_MAX; i++) {
+                if (g->achUnlocked & (1u << i)) unlocked++;
+            }
+        }
+
+        drawTextCenter(0, 150, WIN_W, 30, _T("成就查看"), CLR_PANEL_GLOW);
+        settextstyle(FONT_SCALE(18), 0, FONT_UI);
+        _stprintf(buf, _T("已解锁: %d/%d"), unlocked, ACH_MAX);
+        drawTextCenter(0, 178, WIN_W, 24, buf, CLR_GOLD);
+
+        for (i = 0; i < ACH_MAX; i++) {
+            COLORREF color = CLR_HINT;
+            if (g && (g->achUnlocked & (1u << i))) {
+                color = CLR_GOLD;
+                _tcscpy(status, _T("[已解锁]"));
+            } else {
+                _tcscpy(status, _T("[未解锁]"));
+            }
+            settextstyle(FONT_SCALE(16), 0, FONT_UI);
+            settextcolor(color);
+            _stprintf(buf, _T("%s %s"), status, achName(i));
+            outtextxy(80, y, buf);
+
+            settextstyle(FONT_SCALE(13), 0, FONT_UI);
+            if (g && (g->achUnlocked & (1u << i))) settextcolor(CLR_TEXT);
+            else settextcolor(RGB(130, 150, 180));
+            outtextxy(100, y + 20, achDesc(i));
+
+            y += 36;
+        }
+
+        drawTextCenter(0, 520, WIN_W, 30, _T("M 返回"), CLR_HINT);
     }
 
     FlushBatchDraw();
@@ -776,14 +1038,13 @@ void gfxDrawGame(const GameState *g)
 
 void gfxDrawPause(void)
 {
-    drawPixelPanel(WIN_W / 2 - 120, WIN_H / 2 - 80, 240, 160, RGB(30, 30, 30));
+    drawOverlayPanel(WIN_W / 2 - 140, WIN_H / 2 - 90, 280, 180);
+    settextstyle(FONT_SCALE(40), 0, FONT_TITLE);
+    drawTextCenter(0, WIN_H / 2 - 60, WIN_W, 50, _T("暂停"), CLR_PANEL_GLOW);
 
-    settextstyle(36, 0, _T("Microsoft YaHei"));
-    drawTextCenter(0, WIN_H / 2 - 55, WIN_W, 45, _T("PAUSED"), CLR_TITLE);
-
-    settextstyle(18, 0, _T("Microsoft YaHei"));
-    drawTextCenter(0, WIN_H / 2 + 10, WIN_W, 30, _T("按 P 继续"), CLR_TEXT);
-    drawTextCenter(0, WIN_H / 2 + 40, WIN_W, 30, _T("按 Q 退出"), CLR_HINT);
+    settextstyle(FONT_SCALE(22), 0, FONT_UI);
+    drawTextCenter(0, WIN_H / 2 - 2, WIN_W, 30, _T("按 P 继续"), CLR_TEXT);
+    drawTextCenter(0, WIN_H / 2 + 28, WIN_W, 30, _T("按 Q 退出"), CLR_HINT);
 
     FlushBatchDraw();
 }
@@ -800,13 +1061,13 @@ void gfxDrawDeadTitle(const GameState *g)
     py = WIN_H / 2 - ph / 2;
     drawOverlayPanel(px, py, pw, ph);
 
-    settextstyle(40, 0, _T("Microsoft YaHei"));
+    settextstyle(FONT_SCALE(40), 0, FONT_UI);
     if (g && g->gameMode == MODE_DUAL_TIMED && g->matchTimer <= 0.0f)
-        drawTextCenter(px, py + 18, pw, 50, _T("TIME UP!"), CLR_GOLD);
+        drawTextCenter(px, py + 18, pw, 50, _T("TIME UP"), CLR_GOLD);
     else
-        drawTextCenter(px, py + 18, pw, 50, _T("GAME OVER"), RGB(230, 70, 70));
+        drawTextCenter(px, py + 18, pw, 50, _T("GAME OVER"), CLR_RED_FOOD);
 
-    settextstyle(18, 0, _T("Microsoft YaHei"));
+    settextstyle(FONT_SCALE(18), 0, FONT_UI);
     drawTextCenter(px, py + 80, pw, 30, _T("按任意键继续..."), CLR_TEXT);
 
     FlushBatchDraw();
@@ -819,27 +1080,27 @@ void gfxDrawGameOver(const GameState *g, int score, int highScore, int isNewReco
 
     if (g) drawGameContent(g);
 
-    pw = 340;
+    pw = 360;
     ph = 290;
     px = WIN_W / 2 - pw / 2;
     py = WIN_H / 2 - ph / 2;
     drawOverlayPanel(px, py, pw, ph);
 
-    settextstyle(30, 0, _T("Microsoft YaHei"));
-    drawTextCenter(px, py + 14, pw, 40, _T("游戏结束"), CLR_TITLE);
+    settextstyle(FONT_SCALE(34), 0, FONT_UI);
+    drawTextCenter(px, py + 14, pw, 40, _T("游戏结束"), CLR_PANEL_GLOW);
 
-    settextstyle(20, 0, _T("Consolas"));
+    settextstyle(FONT_SCALE(20), 0, FONT_MONO);
     _stprintf(buf, _T("SCORE: %d"), score);
-    drawTextCenter(px, py + 60, pw, 30, buf, CLR_TEXT);
-    _stprintf(buf, _T("HI:    %d"), highScore);
-    drawTextCenter(px, py + 90, pw, 30, buf, CLR_TEXT);
+    drawTextCenter(px, py + 66, pw, 30, buf, CLR_TEXT);
+    _stprintf(buf, _T("HI: %d"), highScore);
+    drawTextCenter(px, py + 94, pw, 30, buf, CLR_TEXT);
 
     if (isNewRecord) {
-        settextstyle(20, 0, _T("Microsoft YaHei"));
+        settextstyle(FONT_SCALE(20), 0, FONT_UI);
         drawTextCenter(px, py + 124, pw, 28, _T("NEW RECORD!"), CLR_GOLD);
     }
 
-    drawKeyHintsVertical(px, pw, py + 160, hoverIndex);
+    drawKeyHintsVertical(px, pw, py + 164, hoverIndex);
     FlushBatchDraw();
 }
 
@@ -849,25 +1110,25 @@ void gfxDrawDualOver(const GameState *g, int winner, int score1, int score2, int
     TCHAR buf[128];
     LPCTSTR title;
 
-    if (winner == WIN_DRAW || (winner != WIN_P1 && winner != WIN_P2)) title = _T("平局!");
-    else if (winner == WIN_P1 && score1 > score2) title = _T("P1 获胜!");
-    else if (winner == WIN_P2 && score2 > score1) title = _T("P2 获胜!");
-    else if (score1 == score2) title = _T("平局!");
-    else if (score1 > score2) title = _T("P1 获胜!");
-    else title = _T("P2 获胜!");
+    if (winner == WIN_DRAW || (winner != WIN_P1 && winner != WIN_P2)) title = _T("平局");
+    else if (winner == WIN_P1 && score1 > score2) title = _T("P1 获胜");
+    else if (winner == WIN_P2 && score2 > score1) title = _T("P2 获胜");
+    else if (score1 == score2) title = _T("平局");
+    else if (score1 > score2) title = _T("P1 获胜");
+    else title = _T("P2 获胜");
 
     if (g) drawGameContent(g);
 
-    pw = 340;
+    pw = 360;
     ph = 270;
     px = WIN_W / 2 - pw / 2;
     py = WIN_H / 2 - ph / 2;
     drawOverlayPanel(px, py, pw, ph);
 
-    settextstyle(30, 0, _T("Microsoft YaHei"));
-    drawTextCenter(px, py + 14, pw, 40, title, CLR_TITLE);
+    settextstyle(FONT_SCALE(32), 0, FONT_UI);
+    drawTextCenter(px, py + 14, pw, 40, title, CLR_PANEL_GLOW);
 
-    settextstyle(20, 0, _T("Consolas"));
+    settextstyle(FONT_SCALE(20), 0, FONT_MONO);
     _stprintf(buf, _T("P1: %d    P2: %d"), score1, score2);
     drawTextCenter(px, py + 70, pw, 30, buf, CLR_TEXT);
 
@@ -888,15 +1149,17 @@ static void drawMirrorEndButton(void)
     int cy = WIN_H / 2 + 100;
     s_mirrorBtnX = cx - s_mirrorBtnW / 2;
     s_mirrorBtnY = cy;
-    s_mirrorBtnW = 120;
-    s_mirrorBtnH = 40;
+    s_mirrorBtnW = 128;
+    s_mirrorBtnH = 42;
 
-    setfillcolor(RGB(200, 60, 60));
+    setfillcolor(CLR_PANEL);
     solidrectangle(s_mirrorBtnX, s_mirrorBtnY,
                    s_mirrorBtnX + s_mirrorBtnW, s_mirrorBtnY + s_mirrorBtnH);
-    settextstyle(18, 0, _T("Microsoft YaHei"));
+    setlinecolor(CLR_BORDER_HI);
+    rectangle(s_mirrorBtnX + 2, s_mirrorBtnY + 2, s_mirrorBtnX + s_mirrorBtnW - 2, s_mirrorBtnY + s_mirrorBtnH - 2);
+    settextstyle(FONT_SCALE(18), 0, FONT_UI);
     setbkmode(TRANSPARENT);
-    settextcolor(WHITE);
+    settextcolor(CLR_PANEL_GLOW);
     {
         RECT r = { s_mirrorBtnX, s_mirrorBtnY,
                    s_mirrorBtnX + s_mirrorBtnW, s_mirrorBtnY + s_mirrorBtnH };
@@ -920,52 +1183,48 @@ void gfxDrawMirrorGame(const GameState *g1, const GameState *g2,
     cleardevice();
     drawCheckerboard();
 
-    /* P1 分数 */
-    settextstyle(20, 0, _T("Microsoft YaHei"));
-    _stprintf(buf, _T("P1: %d"), g1 ? g1->score : 0);
+    drawInfoPanel(20, 12, 260, 92, _T("P1 对战区"), NULL, CLR_PANEL_GLOW);
+    settextstyle(FONT_SCALE(16), 0, FONT_UI);
     settextcolor(CLR_TEXT);
-    outtextxy(60, 20, buf);
+    _stprintf(buf, _T("P1: %d"), g1 ? g1->score : 0);
+    outtextxy(36, 42, buf);
 
-    /* P2 分数 */
+    drawInfoPanel(MIRROR_MAP2_X, 12, 260, 92, _T("P2 对战区"), NULL, CLR_PANEL_GLOW);
+    settextstyle(FONT_SCALE(16), 0, FONT_UI);
+    settextcolor(CLR_TEXT);
     _stprintf(buf, _T("P2: %d"), g2 ? g2->score : 0);
-    outtextxy(MIRROR_MAP2_X + 20, 20, buf);
+    outtextxy(MIRROR_MAP2_X + 16, 42, buf);
 
-    /* P1 地图 */
     if (g1) {
         drawMapAt(g1, MIRROR_MAP1_X, MIRROR_MAP_Y);
-        drawEffectIndicators(g1, 0, 60, 42);
+        drawEffectIndicators(g1, 0, 30, 42);
     }
 
-    /* P2 地图 */
     if (g2) {
         drawMapAt(g2, MIRROR_MAP2_X, MIRROR_MAP_Y);
         drawEffectIndicators(g2, 1, MIRROR_MAP2_X + 20, 42);
     }
 
-    /* 死亡提示 + 结算按钮 */
     if (p1Dead || p2Dead) {
-        settextstyle(24, 0, _T("Microsoft YaHei"));
+        settextstyle(FONT_SCALE(24), 0, FONT_UI);
         if (p1Dead) {
-            settextcolor(RGB(230, 70, 70));
-            outtextxy(MIRROR_MAP1_X + 140, MIRROR_MAP_Y + 230, _T("已阵亡"));
+            settextcolor(CLR_RED_FOOD);
+            outtextxy(MIRROR_MAP1_X + 138, MIRROR_MAP_Y + 230, _T("已阵亡"));
         }
         if (p2Dead) {
-            settextcolor(RGB(230, 70, 70));
-            outtextxy(MIRROR_MAP2_X + 140, MIRROR_MAP_Y + 230, _T("已阵亡"));
+            settextcolor(CLR_RED_FOOD);
+            outtextxy(MIRROR_MAP2_X + 138, MIRROR_MAP_Y + 230, _T("已阵亡"));
         }
-        /* 只有一方死亡时显示结算按钮 */
         if (p1Dead != p2Dead) {
             drawMirrorEndButton();
         }
     }
 
-    /* 底部提示 */
-    settextstyle(15, 0, _T("Microsoft YaHei"));
+    settextstyle(FONT_SCALE(15), 0, FONT_UI);
     settextcolor(CLR_HINT);
     outtextxy(50, WIN_H - 28, _T("P1:WASD+J"));
     outtextxy(MIRROR_MAP2_X, WIN_H - 28, _T("P2:方向键+0   P暂停  Q退出"));
 
-    /* 飘字 + 连击 + 成就 */
     if (g1) { drawFloatTexts(g1, MIRROR_MAP1_X, MIRROR_MAP_Y); }
     if (g2) { drawFloatTexts(g2, MIRROR_MAP2_X, MIRROR_MAP_Y); }
     if (g1) drawAchNotification(g1);
@@ -992,10 +1251,10 @@ void gfxDrawMirrorDeadTitle(const GameState *g1, const GameState *g2,
     py = WIN_H / 2 - ph / 2;
     drawOverlayPanel(px, py, pw, ph);
 
-    settextstyle(40, 0, _T("Microsoft YaHei"));
-    drawTextCenter(px, py + 18, pw, 50, _T("GAME OVER"), RGB(230, 70, 70));
+    settextstyle(FONT_SCALE(40), 0, FONT_UI);
+    drawTextCenter(px, py + 18, pw, 50, _T("GAME OVER"), CLR_RED_FOOD);
 
-    settextstyle(18, 0, _T("Microsoft YaHei"));
+    settextstyle(FONT_SCALE(18), 0, FONT_UI);
     drawTextCenter(px, py + 80, pw, 30, _T("按任意键继续..."), CLR_TEXT);
 
     FlushBatchDraw();
@@ -1008,22 +1267,22 @@ void gfxDrawMirrorOver(int score1, int score2, int winner, int hoverIndex)
     LPCTSTR title;
 
     if (winner == WIN_DRAW || score1 == score2)
-        title = _T("平局!");
+        title = _T("平局");
     else if (winner == WIN_P1 || score1 > score2)
-        title = _T("P1 获胜!");
+        title = _T("P1 获胜");
     else
-        title = _T("P2 获胜!");
+        title = _T("P2 获胜");
 
-    pw = 340;
+    pw = 360;
     ph = 270;
     px = WIN_W / 2 - pw / 2;
     py = WIN_H / 2 - ph / 2;
     drawOverlayPanel(px, py, pw, ph);
 
-    settextstyle(30, 0, _T("Microsoft YaHei"));
-    drawTextCenter(px, py + 14, pw, 40, title, CLR_TITLE);
+    settextstyle(FONT_SCALE(32), 0, FONT_UI);
+    drawTextCenter(px, py + 14, pw, 40, title, CLR_PANEL_GLOW);
 
-    settextstyle(20, 0, _T("Consolas"));
+    settextstyle(FONT_SCALE(20), 0, FONT_MONO);
     _stprintf(buf, _T("P1: %d    P2: %d"), score1, score2);
     drawTextCenter(px, py + 70, pw, 30, buf, CLR_TEXT);
 

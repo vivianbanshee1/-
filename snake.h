@@ -57,6 +57,7 @@
 #define MENU_SETTINGS     3   /* 设置页 */
 #define MENU_DUAL_MODE    4   /* 双人模式选择 */
 #define MENU_DUAL_MIRROR  5   /* 镜像对决难度选择 */
+#define MENU_ACHIEVEMENTS 6   /* 成就查看 */
 
 /* ===================================================
  *  道具类型
@@ -91,9 +92,14 @@
 #define MODE_DUAL_MIRROR  3   /* 镜像对决 */
 #define MODE_SURVIVAL     4   /* 生存模式 */
 
-#define SNAKE_COLOR_GREEN  0  /* P1绿色 */
-#define SNAKE_COLOR_BLUE   1  /* P1蓝色 */
-#define SNAKE_COLOR_PURPLE 2  /* P1紫色 */
+/* 游戏玩法 */
+#define GAMEPLAY_CLASSIC  0   /* 经典版：无道具 */
+#define GAMEPLAY_ITEM     1   /* 道具版：有道具 */
+
+#define SNAKE_COLOR_GREEN   0  /* P1绿色 */
+#define SNAKE_COLOR_ORANGE  1  /* P1橙色 */
+#define SNAKE_COLOR_PURPLE  2  /* P1紫色 */
+#define SNAKE_COLOR_BLUE    SNAKE_COLOR_ORANGE  /* 兼容保留：不在菜单中展示 */
 
 /* ===================================================
  *  双人胜负
@@ -177,6 +183,8 @@ typedef struct {
 typedef struct {
     int      snakeColor;      /* SNAKE_COLOR_* */
     int      mapSize;         /* 16 / 18 / 20 */
+    int      itemMode;        /* GAMEPLAY_CLASSIC / GAMEPLAY_ITEM */
+    int      aiEnabled;       /* 0=关闭，1=开启 */
 } GameConfig;
 
 typedef struct {
@@ -287,6 +295,16 @@ static inline int normalizeMapSize(int mapSize)
     if (mapSize == MAP_SIZE_SMALL || mapSize == MAP_SIZE_MEDIUM || mapSize == MAP_SIZE_LARGE)
         return mapSize;
     return MAP_SIZE_LARGE;
+}
+
+static inline int normalizeItemMode(int itemMode)
+{
+    return (itemMode == GAMEPLAY_CLASSIC) ? GAMEPLAY_CLASSIC : GAMEPLAY_ITEM;
+}
+
+static inline int normalizeAiEnabled(int aiEnabled)
+{
+    return aiEnabled ? 1 : 0;
 }
 
 /* ===================================================

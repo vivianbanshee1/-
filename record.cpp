@@ -18,6 +18,8 @@ void loadRecordConfig(int *highScore, GameConfig *cfg)
     if (cfg) {
         cfg->snakeColor = SNAKE_COLOR_GREEN;
         cfg->mapSize = MAP_SIZE_LARGE;
+        cfg->itemMode = GAMEPLAY_ITEM;
+        cfg->aiEnabled = 1;
     }
 
     fp = fopen("record.txt", "r");
@@ -29,6 +31,10 @@ void loadRecordConfig(int *highScore, GameConfig *cfg)
             cfg->snakeColor = normalizeSnakeColor(value);
         else if (cfg && strcmp(key, "mapSize") == 0)
             cfg->mapSize = normalizeMapSize(value);
+        else if (cfg && strcmp(key, "itemMode") == 0)
+            cfg->itemMode = normalizeItemMode(value);
+        else if (cfg && strcmp(key, "aiEnabled") == 0)
+            cfg->aiEnabled = normalizeAiEnabled(value);
     }
     fclose(fp);
 }
@@ -40,5 +46,7 @@ void saveRecordConfig(int highScore, const GameConfig *cfg)
     fprintf(fp, "%d\n", highScore);
     fprintf(fp, "snakeColor %d\n", cfg ? normalizeSnakeColor(cfg->snakeColor) : SNAKE_COLOR_GREEN);
     fprintf(fp, "mapSize %d\n", cfg ? normalizeMapSize(cfg->mapSize) : MAP_SIZE_LARGE);
+    fprintf(fp, "itemMode %d\n", cfg ? normalizeItemMode(cfg->itemMode) : GAMEPLAY_ITEM);
+    fprintf(fp, "aiEnabled %d\n", cfg ? normalizeAiEnabled(cfg->aiEnabled) : 1);
     fclose(fp);
 }

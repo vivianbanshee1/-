@@ -50,6 +50,16 @@ static void cycleMapSize(GameConfig *cfg)
     else cfg->mapSize = MAP_SIZE_SMALL;
 }
 
+static void toggleItemMode(GameConfig *cfg)
+{
+    cfg->itemMode = normalizeItemMode((cfg->itemMode == GAMEPLAY_CLASSIC) ? GAMEPLAY_ITEM : GAMEPLAY_CLASSIC);
+}
+
+static void toggleAiEnabled(GameConfig *cfg)
+{
+    cfg->aiEnabled = normalizeAiEnabled(!cfg->aiEnabled);
+}
+
 /* 暂停恢复时重置各模式移动时钟，避免长时间停顿导致一次性多步 */
 static void resetMoveClocks(GameState *g, GameState *g2, DWORD now)
 {
@@ -98,6 +108,8 @@ static int runGame(void)
     g.achShieldBlocks = achShieldBlocks;
     cfg.snakeColor = normalizeSnakeColor(cfg.snakeColor);
     cfg.mapSize = normalizeMapSize(cfg.mapSize);
+    cfg.itemMode = normalizeItemMode(cfg.itemMode);
+    cfg.aiEnabled = normalizeAiEnabled(cfg.aiEnabled);
     g.config = cfg;
     g.mapSize = cfg.mapSize;
     g.gameState = STATE_MENU;
@@ -121,6 +133,7 @@ static int runGame(void)
                 else if (key == '2') { menuPage = MENU_DUAL_MODE; hoverIndex = 0; }
                 else if (key == '3') { singleMode = MODE_SURVIVAL; menuPage = MENU_SINGLE_DIFF; hoverIndex = 0; }
                 else if (key == '4') { menuPage = MENU_SETTINGS; hoverIndex = 0; }
+                else if (key == '5') { menuPage = MENU_ACHIEVEMENTS; hoverIndex = 0; }
                 else if (key == 'Q') running = 0;
             }
             else if (menuPage == MENU_SINGLE_DIFF) {
@@ -192,7 +205,22 @@ static int runGame(void)
                     g.config = cfg;
                     g.mapSize = cfg.mapSize;
                     saveRecordConfig(g.highScore, &cfg);
-                } else if (key == '3' || key == 'M' || key == 27) {
+                } else if (key == '3') {
+                    toggleItemMode(&cfg);
+                    g.config = cfg;
+                    saveRecordConfig(g.highScore, &cfg);
+                } else if (key == '4') {
+                    toggleAiEnabled(&cfg);
+                    g.config = cfg;
+                    saveRecordConfig(g.highScore, &cfg);
+                } else if (key == 'M' || key == 27) {
+                    menuPage = MENU_MAIN;
+                    hoverIndex = 0;
+                } else if (key == 'Q') {
+                    running = 0;
+                }
+            } else if (menuPage == MENU_ACHIEVEMENTS) {
+                if (key == 'M' || key == 27) {
                     menuPage = MENU_MAIN;
                     hoverIndex = 0;
                 } else if (key == 'Q') {
@@ -261,14 +289,16 @@ static int runGame(void)
 
                         if (g.gameMode == MODE_SINGLE) {
                         gameApplySpeed(&g, gfxIsKeyDown(VK_BOOST_P1), 0);
-                        itemUpdate(&g, dt);
+                        if (g.config.itemMode == GAMEPLAY_ITEM)
+                            itemUpdate(&g, dt);
                         comboUpdate(&g, dt);
                         floatTextUpdate(&g, dt);
                         g.elapsedTime += dt;
                         g.diffFactor = 1.0f + g.elapsedTime / 120.0f;
                         if (g.diffFactor > 3.0f) g.diffFactor = 3.0f;
                         movingObsUpdate(&g, dt);
-                        aiUpdate(&g, dt);
+                        if (g.config.aiEnabled)
+                            aiUpdate(&g, dt);
                         gameUpdateRedTimer(&g, dt);
                         ret = gameMove(&g);
                         if (ret == 0) {
@@ -290,6 +320,7 @@ static int runGame(void)
 
                         if (p1Ready) {
                             gameApplySpeed(&g, gfxIsKeyDown(VK_BOOST_P1), 0);
+                            if (g.config.itemMode == GAMEPLAY_ITEM)
                             itemUpdate(&g, dt);
                             comboUpdate(&g, dt);
                             floatTextUpdate(&g, dt);
@@ -297,6 +328,7 @@ static int runGame(void)
                             g.diffFactor = 1.0f + g.elapsedTime / 120.0f;
                             if (g.diffFactor > 3.0f) g.diffFactor = 3.0f;
                             movingObsUpdate(&g, dt);
+                            if (g.config.aiEnabled)
                             aiUpdate(&g, dt);
                             gameUpdateRedTimer(&g, dt);
                             if (gameMove(&g) == 0) { achCheckAll(&g, g.gameMode); mirrorP1Dead = 1; }
@@ -304,14 +336,16 @@ static int runGame(void)
                         }
                         if (p2Ready) {
                             gameApplySpeed(&g2, 0, gfxIsKeyDown(VK_BOOST_P2));
-                            itemUpdate(&g2, dt);
+                            if (g2.config.itemMode == GAMEPLAY_ITEM)
+                                itemUpdate(&g2, dt);
                             comboUpdate(&g2, dt);
                             floatTextUpdate(&g2, dt);
                             g2.elapsedTime += dt;
                             g2.diffFactor = 1.0f + g2.elapsedTime / 120.0f;
                             if (g2.diffFactor > 3.0f) g2.diffFactor = 3.0f;
                             movingObsUpdate(&g2, dt);
-                            aiUpdate(&g2, dt);
+                            if (g2.config.aiEnabled)
+                                aiUpdate(&g2, dt);
                             gameUpdateRedTimer(&g2, dt);
                             if (gameMove(&g2) == 0) { achCheckAll(&g2, g2.gameMode); mirrorP2Dead = 1; }
                             g2.lastTickP1 = now;
@@ -340,14 +374,16 @@ static int runGame(void)
                         gameApplySpeed(&g,
                             gfxIsKeyDown(VK_BOOST_P1),
                             gfxIsKeyDown(VK_BOOST_P2));
-                        itemUpdate(&g, dt);
+                        if (g.config.itemMode == GAMEPLAY_ITEM)
+                            itemUpdate(&g, dt);
                         comboUpdate(&g, dt);
                         floatTextUpdate(&g, dt);
                         g.elapsedTime += dt;
                         g.diffFactor = 1.0f + g.elapsedTime / 120.0f;
                         if (g.diffFactor > 3.0f) g.diffFactor = 3.0f;
                         movingObsUpdate(&g, dt);
-                        aiUpdate(&g, dt);
+                        if (g.config.aiEnabled)
+                            aiUpdate(&g, dt);
                         gameUpdateRedTimer(&g, dt);
                         ret = gameMoveDual(&g, p1Ready, p2Ready);
                         if (p1Ready) g.lastTickP1 = now;

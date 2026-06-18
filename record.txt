@@ -1,3 +1,5 @@
-497
-snakeColor 1
+1559
+snakeColor 0
 mapSize 20
+itemMode 0
+aiEnabled 0

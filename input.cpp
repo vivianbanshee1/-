@@ -35,19 +35,19 @@ int gfxGetMenuInput(int *hoverIndex)
     while (peekmessage(&m, EX_MOUSE | EX_KEY, true)) {
         if (m.message == WM_MOUSEMOVE) {
             mx = m.x; my = m.y; hit = 0;
-            for (i = 1; i <= 4; i++) {
-                int bx = WIN_W / 2 - 130;
-                int by = 200 + i * 55;
-                if (mx >= bx && mx <= bx + 260 && my >= by && my <= by + 50) { hit = i; break; }
+            for (i = 1; i <= 5; i++) {
+                int bx = MENU_BTN_X;
+                int by = MENU_BTN_START_Y + (i - 1) * MENU_BTN_GAP;
+                if (mx >= bx && mx <= bx + MENU_BTN_W && my >= by && my <= by + MENU_BTN_H) { hit = i; break; }
             }
             if (hoverIndex) *hoverIndex = hit;
         }
         else if (m.message == WM_LBUTTONDOWN) {
             mx = m.x; my = m.y; hit = 0;
-            for (i = 1; i <= 4; i++) {
-                int bx = WIN_W / 2 - 130;
-                int by = 200 + i * 55;
-                if (mx >= bx && mx <= bx + 260 && my >= by && my <= by + 50) { hit = i; break; }
+            for (i = 1; i <= 5; i++) {
+                int bx = MENU_BTN_X;
+                int by = MENU_BTN_START_Y + (i - 1) * MENU_BTN_GAP;
+                if (mx >= bx && mx <= bx + MENU_BTN_W && my >= by && my <= by + MENU_BTN_H) { hit = i; break; }
             }
             if (hoverIndex) *hoverIndex = hit;
             if (hit > 0) return '0' + hit;

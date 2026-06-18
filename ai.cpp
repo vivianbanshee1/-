@@ -129,6 +129,9 @@ void aiUpdate(GameState *g, float dt)
 {
     int i, d;
 
+    if (!g || !g->config.aiEnabled)
+        return;
+
     /* --- 生成逻辑 --- */
     if (g->aiCount < MAX_AI) {
         g->aiSpawnCD -= dt;

@@ -141,6 +141,8 @@ void gameInit(GameState *g, int difficulty, const GameConfig *cfg)
 
     savedCfg.snakeColor = cfg ? normalizeSnakeColor(cfg->snakeColor) : SNAKE_COLOR_GREEN;
     savedCfg.mapSize = cfg ? normalizeMapSize(cfg->mapSize) : MAP_SIZE_LARGE;
+    savedCfg.itemMode = cfg ? normalizeItemMode(cfg->itemMode) : GAMEPLAY_ITEM;
+    savedCfg.aiEnabled = cfg ? normalizeAiEnabled(cfg->aiEnabled) : 1;
 
     memset(g, 0, sizeof(*g));
     g->highScore = highScore;
@@ -165,8 +167,12 @@ void gameInit(GameState *g, int difficulty, const GameConfig *cfg)
     markSnake(&g->snake, CELL_SNAKE, g->grid);
 
     placeObstacles(g);
-    aiInit(g);
-    aiMarkAll(g);
+    if (g->config.aiEnabled) {
+        aiInit(g);
+        aiMarkAll(g);
+    } else {
+        g->aiCount = 0;
+    }
     g->diffFactor = 1.0f;
     movingObsInit(g);
     gamePlaceBlueFood(g);
@@ -184,6 +190,8 @@ void gameInitDual(GameState *g, int difficulty, int mode, const GameConfig *cfg)
 
     savedCfg.snakeColor = cfg ? normalizeSnakeColor(cfg->snakeColor) : SNAKE_COLOR_GREEN;
     savedCfg.mapSize = cfg ? normalizeMapSize(cfg->mapSize) : MAP_SIZE_LARGE;
+    savedCfg.itemMode = cfg ? normalizeItemMode(cfg->itemMode) : GAMEPLAY_ITEM;
+    savedCfg.aiEnabled = cfg ? normalizeAiEnabled(cfg->aiEnabled) : 1;
 
     memset(g, 0, sizeof(*g));
     g->highScore = highScore;
@@ -228,8 +236,12 @@ void gameInitDual(GameState *g, int difficulty, int mode, const GameConfig *cfg)
     markSnake(&g->snake, CELL_SNAKE, g->grid);
     markSnake(&g->snake2, CELL_SNAKE2, g->grid);
     placeObstacles(g);
-    aiInit(g);
-    aiMarkAll(g);
+    if (g->config.aiEnabled) {
+        aiInit(g);
+        aiMarkAll(g);
+    } else {
+        g->aiCount = 0;
+    }
     g->diffFactor = 1.0f;
     movingObsInit(g);
     gamePlaceBlueFood(g);
@@ -252,7 +264,7 @@ int gameMove(GameState *g)
     cell = g->grid[ny][nx];
 
     /* 道具收集 */
-    if (cell == CELL_ITEM) {
+    if (g->config.itemMode == GAMEPLAY_ITEM && cell == CELL_ITEM) {
         itemCollect(g, 0, g->itemOnField);
         cell = CELL_EMPTY;
     }
@@ -370,7 +382,7 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
         peek1 = (nx1 < 0 || ny1 < 0 || nx1 >= g->mapSize || ny1 >= g->mapSize)
                 ? CELL_WALL : g->grid[ny1][nx1];
         /* 道具收集 */
-        if (peek1 == CELL_ITEM) {
+        if (g->config.itemMode == GAMEPLAY_ITEM && peek1 == CELL_ITEM) {
             itemCollect(g, 0, g->itemOnField);
             g->grid[ny1][nx1] = CELL_EMPTY;
             peek1 = CELL_EMPTY;
@@ -386,7 +398,7 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
         peek2 = (nx2 < 0 || ny2 < 0 || nx2 >= g->mapSize || ny2 >= g->mapSize)
                 ? CELL_WALL : g->grid[ny2][nx2];
         /* 道具收集 */
-        if (peek2 == CELL_ITEM) {
+        if (g->config.itemMode == GAMEPLAY_ITEM && peek2 == CELL_ITEM) {
             itemCollect(g, 1, g->itemOnField);
             g->grid[ny2][nx2] = CELL_EMPTY;
             peek2 = CELL_EMPTY;
