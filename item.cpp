@@ -5,6 +5,7 @@
  * ============================================================ */
 #include "item.h"
 #include "achievement.h"
+#include "sound.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -209,6 +210,7 @@ void itemCollect(GameState *g, int player, int itemType)
     }
 
     /* 拾取后移除场上道具 */
+    soundPlayItemCollect(itemType);
     itemRemove(g);
 }
 
@@ -260,6 +262,7 @@ int itemConsumeShield(GameState *g, int player)
     if (*shields <= 0) return 0;
     (*shields)--;
     achOnShieldBlock(g);
+    soundPlayShieldBlock();
     if (*shields <= 0) {
         *shields = 0;
         *ef &= ~(1u << EFF_SHIELD);

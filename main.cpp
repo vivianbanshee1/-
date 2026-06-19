@@ -20,6 +20,7 @@
 #include "achievement.h"
 #include "gfx.h"
 #include "input.h"
+#include "sound.h"
 
 /* ===================================================
  *  菜单辅助函数
@@ -116,6 +117,7 @@ static int runGame(void)
 
     /* 初始化图形系统 */
     gfxInit();
+    soundInit();
     lastTick = GetTickCount();
 
     while (running) {
@@ -139,6 +141,7 @@ static int runGame(void)
             else if (menuPage == MENU_SINGLE_DIFF) {
                 int diff = menuChoiceToDifficulty(key);
                 if (diff >= 0) {
+                    soundPlayMenuConfirm();
                     gameInit(&g, diff, &cfg);
                     lastTick = GetTickCount();
                 } else if (key == 'M' || key == 27) {
@@ -171,6 +174,7 @@ static int runGame(void)
                     duelCfg.aiEnabled = 0;
                     mirrorP1Dead = 0; mirrorP2Dead = 0;
                     mirrorEndRequested = 0;
+                    soundPlayMenuConfirm();
                     srand(seed); gameInit(&g, diff, &duelCfg);
                     srand(seed); gameInit(&g2, diff, &duelCfg);
                     g.gameMode = MODE_DUAL_MIRROR;
@@ -187,6 +191,7 @@ static int runGame(void)
             else if (menuPage == MENU_DUAL_DIFF) {
                 int diff = menuChoiceToDifficulty(key);
                 if (diff >= 0) {
+                    soundPlayMenuConfirm();
                     gameInitDual(&g, diff, dualMode, &cfg);
                     lastTick = GetTickCount();
                 } else if (key == 'M' || key == 27) {
@@ -246,6 +251,7 @@ static int runGame(void)
             if (key == 'p') key = 'P';
 
             if (key == 'P') {
+                soundPlayPause();
                 DWORD pauseNow = GetTickCount();
                 g.gameState = STATE_PAUSED;
                 lastTick = pauseNow;
@@ -311,6 +317,7 @@ static int runGame(void)
                         gameUpdateRedTimer(&g, dt);
                         ret = gameMove(&g);
                         if (ret == 0) {
+                            soundPlayGameOver();
                             achCheckAll(&g, g.gameMode);
                             int isNewRecord = g.score > g.highScore;
                             if (isNewRecord) {
@@ -369,6 +376,7 @@ static int runGame(void)
                             }
                         }
                         if ((mirrorP1Dead && mirrorP2Dead) || mirrorEndRequested) {
+                            soundPlayGameOver();
                             if (g.score > g2.score) g.winner = WIN_P1;
                             else if (g2.score > g.score) g.winner = WIN_P2;
                             else g.winner = WIN_DRAW;
@@ -398,12 +406,14 @@ static int runGame(void)
                         if (p1Ready) g.lastTickP1 = now;
                         if (p2Ready) g.lastTickP2 = now;
                         if (ret == 0) {
+                            soundPlayGameOver();
                             achCheckAll(&g, g.gameMode);
                             g.deadTick = now;
                             g.gameState = STATE_DEAD_TITLE;
                         } else if (g.gameMode == MODE_DUAL_TIMED &&
                                    !gameUpdateTimer(&g, dt)) {
                             /* 时间到，比分高者胜 */
+                            soundPlayGameOver();
                             if (g.score > g.score2) g.winner = WIN_P1;
                             else if (g.score2 > g.score) g.winner = WIN_P2;
                             else g.winner = WIN_DRAW;
@@ -431,6 +441,7 @@ static int runGame(void)
             }
             gfxDrawPause();
             if (key == 'P') {
+                soundPlayResume();
                 DWORD resumeNow = GetTickCount();
                 g.gameState = STATE_PLAYING;
                 lastTick = resumeNow;
@@ -483,6 +494,7 @@ static int runGame(void)
                 gfxDrawGameOver(&g, g.score, g.highScore, g.score >= g.highScore && g.score > 0, hoverIndex);
 
             if (key == 'R') {
+                soundPlayMenuConfirm();
                 if (g.gameMode == MODE_DUAL_MIRROR) {
                     unsigned seed = (unsigned)time(NULL);
                     GameConfig duelCfg = cfg;

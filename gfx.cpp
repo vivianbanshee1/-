@@ -294,9 +294,55 @@ static void drawPixelPanel(int x, int y, int w, int h, COLORREF fill)
 
 static void drawPixelSnakeHead(int left, int top, COLORREF headColor, int dir)
 {
-    (void)dir;
+    int cx, cy;
+    int eye1x, eye2x, eye1y, eye2y;
+    int eyeLen;
+
     setfillcolor(headColor);
     solidrectangle(left + 1, top + 1, left + CELL_PX - 1, top + CELL_PX - 1);
+
+    cx = left + CELL_PX / 2;
+    cy = top + CELL_PX / 2;
+    eyeLen = CELL_PX / 4;
+
+    setlinecolor(RGB(255, 255, 255));
+    setlinestyle(PS_SOLID, 2);
+
+    if (dir == DIR_UP) {
+        /* 相对中心线(x=cx)左右对称，朝上时在头部上半区 */
+        eye1x = cx - CELL_PX / 6;
+        eye2x = cx + CELL_PX / 6;
+        eye1y = top + CELL_PX / 3;
+        eye2y = eye1y;
+        line(eye1x, eye1y, eye1x, eye1y + eyeLen);
+        line(eye2x, eye2y, eye2x, eye2y + eyeLen);
+    } else if (dir == DIR_DOWN) {
+        /* 相对中心线(x=cx)左右对称，朝下时在头部下半区 */
+        eye1x = cx - CELL_PX / 6;
+        eye2x = cx + CELL_PX / 6;
+        eye1y = top + CELL_PX * 2 / 3 - eyeLen;
+        eye2y = eye1y;
+        line(eye1x, eye1y, eye1x, eye1y + eyeLen);
+        line(eye2x, eye2y, eye2x, eye2y + eyeLen);
+    } else if (dir == DIR_LEFT) {
+        /* 相对中心线(y=cy)上下对称，朝左时眼睛在左前方 */
+        eye1y = cy - CELL_PX / 6;
+        eye2y = cy + CELL_PX / 6;
+        eye1x = left + CELL_PX / 3;
+        eye2x = eye1x;
+        line(eye1x, eye1y, eye1x + eyeLen, eye1y);
+        line(eye2x, eye2y, eye2x + eyeLen, eye2y);
+    } else {
+        /* 相对中心线(y=cy)上下对称，朝右时眼睛在右前方 */
+        eye1y = cy - CELL_PX / 6;
+        eye2y = cy + CELL_PX / 6;
+        eye1x = left + CELL_PX * 2 / 3 - eyeLen;
+        eye2x = eye1x;
+        line(eye1x, eye1y, eye1x + eyeLen, eye1y);
+        line(eye2x, eye2y, eye2x + eyeLen, eye2y);
+    }
+
+    setlinestyle(PS_SOLID, 1);
 }
 
 static void drawPixelSnakeBody(int left, int top, COLORREF color)
@@ -390,8 +436,7 @@ static void drawPixelBlueFood(int left, int top, COLORREF ambient)
     (void)ambient;
     /* 蓝莓：深紫实心圆 + 高光斑 + 顶部一片小绿叶 */
     int cx = left + CELL_PX / 2;
-    int cy = left + CELL_PX / 2;
-    cy = left + CELL_PX * 2 / 3;
+    int cy = top + CELL_PX * 2 / 3;
     int r = CELL_PX * 2 / 5;
 
     /* 暗光晕 */
@@ -433,8 +478,8 @@ static void drawPixelRedFood(int left, int top, COLORREF ambient)
     (void)ambient;
     /* 草莓：红色三角/倒锥形 + 顶部绿叶 + 黄色籽点 */
     int cx = left + CELL_PX / 2;
-    int topY = left + CELL_PX / 3;
-    int bottomY = left + CELL_PX - 2;
+    int topY = top + CELL_PX / 3;
+    int bottomY = top + CELL_PX - 2;
     int halfW = CELL_PX / 3;
     POINT body[3];
 
@@ -893,6 +938,9 @@ static void drawMapAt(const GameState *g, int ox, int oy)
                     drawPixelBlueFood(left, top, tileBg);
                 } else if (cell == CELL_RED) {
                     drawPixelRedFood(left, top, tileBg);
+                } else if (cell == CELL_ITEM) {
+                    if (g->config.itemMode == GAMEPLAY_ITEM)
+                        drawPixelItem(left, top, g->itemOnField);
                 } else if (cell == CELL_SNAKE) {
                     int idx = snakeBodyIndex(&g->snake, x, y);
                     if (idx == 0) drawPixelSnakeHead(left, top, getP1HeadColor(g->config.snakeColor), g->snake.dir);
@@ -908,13 +956,6 @@ static void drawMapAt(const GameState *g, int ox, int oy)
                 }
             }
         }
-    }
-
-    /* 绘制场上道具 */
-    if (g->config.itemMode == GAMEPLAY_ITEM && g->itemOnField != ITEM_NONE) {
-        int ileft = ox + g->itemPos.x * CELL_PX;
-        int itop = oy + g->itemPos.y * CELL_PX;
-        drawPixelItem(ileft, itop, g->itemOnField);
     }
 }
 

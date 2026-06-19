@@ -4,6 +4,6 @@ mapSize 20
 itemMode 0
 aiEnabled 0
 achMask 591
-achBlueTotal 163
+achBlueTotal 189
 achAIKills 0
 achShieldBlocks 2

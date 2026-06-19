@@ -13,6 +13,7 @@
 #include "floattext.h"
 #include "movingobs.h"
 #include "achievement.h"
+#include "sound.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -315,10 +316,12 @@ int gameMove(GameState *g)
     /* 碰撞判定（穿墙效果允许穿过自己的身体） */
     if (cell == CELL_WALL || cell == CELL_OBS || cell == CELL_AI || cell == CELL_SNAKE2) {
         if (itemConsumeShield(g, 0)) return 1;
+        soundPlayDeath();
         return 0;
     }
     if (cell == CELL_SNAKE && !hasGhost) {
         if (itemConsumeShield(g, 0)) return 1;
+        soundPlayDeath();
         return 0;
     }
 
@@ -347,6 +350,7 @@ int gameMove(GameState *g)
             floatTextAdd(g, (float)nx, (float)ny, buf,
                 comboCount(g) >= 3 ? RGB(255,200,0) : RGB(230,230,230), 1.2f);
         }
+        soundPlayEatBlue();
         gamePlaceBlueFood(g);
         if (g->blueCount % RED_TRIGGER == 0 && !g->hasRed)
             gamePlaceRedFood(g);
@@ -357,6 +361,7 @@ int gameMove(GameState *g)
         int base = calcRedScore(g) * mult;
         int act = comboOnEat(g, base);
         g->score += act;
+        soundPlayEatRed();
         if (base >= RED_BASE * mult) achUnlock(g, ACH_RED50);
         g->hasRed = 0;
         {
@@ -384,6 +389,7 @@ int gameMove(GameState *g)
                     g->score += act;
                     g->blueCount++;
                     achOnEatBlue(g);
+                    soundPlayEatBlue();
                     g->grid[my][mx] = CELL_EMPTY;
                     gamePlaceBlueFood(g);
                     if (g->blueCount % RED_TRIGGER == 0 && !g->hasRed)
@@ -486,6 +492,7 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
     }
 
     if (dead1 || dead2) {
+        soundPlayDeath();
         if (dead1 && dead2) g->winner = WIN_DRAW;
         else if (dead1) g->winner = WIN_P2;
         else g->winner = WIN_P1;
@@ -502,6 +509,7 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
 
     /* 计分（双倍道具 + 连击） */
     if (eat1) {
+        soundPlayEatBlue();
         int act = comboOnEat(g, BLUE_BASE * mult1);
         g->score += act; achOnEatBlue(g);
         { TCHAR b[16]; _stprintf(b, _T("+%d"), act);
@@ -510,12 +518,14 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
     if (eat2) {
         /* Note: combo system is shared (P1's combo tracking). For dual,
            we give P2 the same combo benefit using P1's combo state */
+        soundPlayEatBlue();
         int act = comboOnEat(g, BLUE_BASE * mult2);
         g->score2 += act; achOnEatBlue(g);
         { TCHAR b[16]; _stprintf(b, _T("+%d"), act);
           floatTextAdd(g, (float)nx2, (float)ny2, b, RGB(230,230,230), 1.2f); }
     }
     if (eatRed1) {
+        soundPlayEatRed();
         int base = calcRedScore(g) * mult1;
         int act = comboOnEat(g, base);
         g->score += act; g->hasRed = 0;
@@ -524,6 +534,7 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
           floatTextAdd(g, (float)nx1, (float)ny1, b, RGB(230,70,70), 1.2f); }
     }
     if (eatRed2) {
+        soundPlayEatRed();
         int base = calcRedScore(g) * mult2;
         int act = comboOnEat(g, base);
         g->score2 += act; g->hasRed = 0;
