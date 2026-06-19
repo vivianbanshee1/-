@@ -3,9 +3,9 @@ snakeColor 0
 mapSize 20
 itemMode 1
 aiEnabled 1
-menuBgImagePath 
-menuMusicPath 
+menuBgImagePath
+menuMusicPath
 achMask 591
-achBlueTotal 241
-achAIKills 0
-achShieldBlocks 3
+achBlueTotal 277
+achAIKills 2
+achShieldBlocks 4

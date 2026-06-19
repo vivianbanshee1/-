@@ -12,18 +12,34 @@
  * =================================================== */
 
 /* 在网格中找一个空格子（避开已有食物） */
-static int randomEmptyCell(GameState *g, Position *p)
+static int randomEmptyCell(GameState *g, Position *p, int forbidX, int forbidY)
 {
     int tries = g->mapSize * g->mapSize * 2;
+    int x, y;
+
+    if (!g || !p || g->mapSize <= 0) return 0;
+
     while (tries-- > 0) {
-        int x = rand() % g->mapSize;
-        int y = rand() % g->mapSize;
-        if (g->grid[y][x] == CELL_EMPTY) {
+        x = rand() % g->mapSize;
+        y = rand() % g->mapSize;
+        if (g->grid[y][x] == CELL_EMPTY &&
+            !(x == forbidX && y == forbidY)) {
             p->x = x;
             p->y = y;
             return 1;
         }
     }
+
+    for (y = 0; y < g->mapSize; y++) {
+        for (x = 0; x < g->mapSize; x++) {
+            if (g->grid[y][x] == CELL_EMPTY && !(x == forbidX && y == forbidY)) {
+                p->x = x;
+                p->y = y;
+                return 1;
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -48,7 +64,7 @@ void gamePlaceBlueFood(GameState *g)
         }
     }
 
-    if (randomEmptyCell(g, &p)) {
+    if (randomEmptyCell(g, &p, -1, -1)) {
         g->blueFood = p;
         g->grid[p.y][p.x] = CELL_BLUE;
     }
@@ -72,13 +88,11 @@ void gamePlaceRedFood(GameState *g)
         }
     }
 
-    if (randomEmptyCell(g, &p)) {
-        if (!(p.x == g->blueFood.x && p.y == g->blueFood.y)) {
-            g->redFood = p;
-            g->grid[p.y][p.x] = CELL_RED;
-            g->hasRed = 1;
-            g->redTimer = (float)RED_TIMER_MAX;
-        }
+    if (randomEmptyCell(g, &p, g->blueFood.x, g->blueFood.y)) {
+        g->redFood = p;
+        g->grid[p.y][p.x] = CELL_RED;
+        g->hasRed = 1;
+        g->redTimer = (float)RED_TIMER_MAX;
     }
 }
 

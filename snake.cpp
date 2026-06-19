@@ -73,19 +73,44 @@ static void setupGrid(GameState *g)
     }
 }
 
-/* 随机放置障碍物 */
+/* 随机放置障碍物（带失败回退，避免极端状态下死循环） */
 static void placeObstacles(GameState *g)
 {
     int i;
     for (i = 0; i < g->obsCount && i < MAX_OBS; i++) {
-        int x, y;
-        do {
+        int x, y, tries;
+        int placed = 0;
+
+        for (tries = 0; tries < g->mapSize * g->mapSize * 2; tries++) {
             x = rand() % g->mapSize;
             y = rand() % g->mapSize;
-        } while (g->grid[y][x] != CELL_EMPTY);
-        g->obs[i].x = x;
-        g->obs[i].y = y;
-        g->grid[y][x] = CELL_OBS;
+            if (g->grid[y][x] == CELL_EMPTY) {
+                g->obs[i].x = x;
+                g->obs[i].y = y;
+                g->grid[y][x] = CELL_OBS;
+                placed = 1;
+                break;
+            }
+        }
+
+        if (!placed) {
+            int yy, xx;
+            for (yy = 0; yy < g->mapSize && !placed; yy++) {
+                for (xx = 0; xx < g->mapSize; xx++) {
+                    if (g->grid[yy][xx] == CELL_EMPTY) {
+                        g->obs[i].x = xx;
+                        g->obs[i].y = yy;
+                        g->grid[yy][xx] = CELL_OBS;
+                        placed = 1;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!placed) {
+            break;
+        }
     }
 }
 
@@ -138,6 +163,60 @@ static int cellAfterVirtualTailClear(int cell, int x, int y,
     return cell;
 }
 
+static int gameApplyMagnet(GameState *g, int player, int hx, int hy, int mult)
+{
+    int dx, dy;
+
+    if (!g || !itemHasEffect(g, player, EFF_MAGNET)) {
+        return 0;
+    }
+
+    for (dy = -MAGNET_RANGE; dy <= MAGNET_RANGE; dy++) {
+        for (dx = -MAGNET_RANGE; dx <= MAGNET_RANGE; dx++) {
+            int mx = hx + dx;
+            int my = hy + dy;
+            int dist = abs(dx) + abs(dy);
+            if (dist > 0 && dist <= MAGNET_RANGE &&
+                mx >= 0 && my >= 0 && mx < g->mapSize && my < g->mapSize &&
+                g->grid[my][mx] == CELL_BLUE) {
+                int base = (BLUE_BASE * g->mult / 10) * mult;
+                int act;
+                int comb;
+                if (player == 1)
+                    act = comboOnEatForPlayer(g, base, 1);
+                else
+                    act = comboOnEatForPlayer(g, base, 0);
+
+                if (player == 1) {
+                    g->score2 += act;
+                } else {
+                    g->score += act;
+                }
+                g->blueCount++;
+                achOnEatBlue(g);
+                soundPlayEatBlue();
+                g->grid[my][mx] = CELL_EMPTY;
+                gamePlaceBlueFood(g);
+                if (g->blueCount % RED_TRIGGER == 0 && !g->hasRed)
+                    gamePlaceRedFood(g);
+
+                comb = comboCountForPlayer(g, player);
+                {
+                    TCHAR b[16];
+                    _stprintf(b, _T("+%d"), act);
+                    floatTextAdd(g, (float)mx, (float)my, b,
+                        comb >= 3 ? RGB(255,200,0) : RGB(230,230,230), 1.2f);
+                }
+
+                achCheckAll(g, g->gameMode);
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 /* ===================================================
  *  游戏逻辑函数
  * =================================================== */
@@ -180,16 +259,20 @@ void gameInit(GameState *g, int difficulty, const GameConfig *cfg)
     /* 出生点行/列随机：避免每局都在地图正中央 */
     {
         int rx, ry, tries = 0;
+        const int minBodyY = 1;
+        const int maxBodyY = g->mapSize - 3;
         do {
             rx = g->mapSize / 2 + (rand() % 5) - 2;  /* mapSize/2 + {-2,-1,0,1,2} */
             ry = g->mapSize / 2 + (rand() % 5) - 2;
             tries++;
         } while (tries < 16 &&
-                 (rx < 3 || ry < 3 || rx > g->mapSize - 4 || ry > g->mapSize - 4));
+                 (rx < 1 || ry < 1 || rx > g->mapSize - 2 || ry > maxBodyY));
+
         if (rx < 1) rx = 1;
-        if (ry < 1) ry = 1;
+        if (ry < minBodyY) ry = minBodyY;
         if (rx > g->mapSize - 2) rx = g->mapSize - 2;
-        if (ry > g->mapSize - 2) ry = g->mapSize - 2;
+        if (ry > maxBodyY) ry = maxBodyY;
+
         /* 让蛇头朝上，身子在下方（不影响随机性，只影响渲染） */
         g->snake.body[0].x = rx;
         g->snake.body[0].y = ry;
@@ -197,13 +280,20 @@ void gameInit(GameState *g, int difficulty, const GameConfig *cfg)
         g->snake.body[1].y = ry + 1;
         g->snake.body[2].x = rx;
         g->snake.body[2].y = ry + 2;
+
         /* 头部附近清理：避免出生点压在障碍/食物/墙上 */
         {
             int bx, by;
-            for (by = ry; by <= ry + 2; by++)
-                for (bx = rx; bx <= rx; bx++)
+            for (by = ry; by <= ry + 2; by++) {
+                if (by < 0 || by >= g->mapSize)
+                    continue;
+                for (bx = rx; bx <= rx; bx++) {
+                    if (bx < 0 || bx >= g->mapSize)
+                        continue;
                     if (g->grid[by][bx] != CELL_OBS)
                         g->grid[by][bx] = CELL_SNAKE;
+                }
+            }
         }
     }
     g->snake.len = 3;
@@ -354,6 +444,11 @@ int gameMove(GameState *g)
             g->grid[tail.y][tail.x] = CELL_EMPTY;
     }
 
+    /* 重算目标格子的语义（虚拟清尾后） */
+    cell = cellAfterVirtualTailClear(cell, nx, ny,
+                                    tail, !grow,
+                                    tail, 0);
+
     /* 碰撞判定（穿墙效果允许穿过自己的身体） */
     if (cell == CELL_WALL || cell == CELL_OBS || cell == CELL_AI || cell == CELL_SNAKE2) {
         if (itemConsumeShield(g, 0)) {
@@ -419,31 +514,8 @@ int gameMove(GameState *g)
     }
 
     /* 磁铁吸附：移动后在头部3格内找蓝色食物 */
-    if (itemHasEffect(g, 0, EFF_MAGNET)) {
-        int dx, dy;
-        for (dy = -MAGNET_RANGE; dy <= MAGNET_RANGE; dy++) {
-            for (dx = -MAGNET_RANGE; dx <= MAGNET_RANGE; dx++) {
-                int mx = nx + dx, my = ny + dy;
-                int dist = abs(dx) + abs(dy);
-                if (dist > 0 && dist <= MAGNET_RANGE &&
-                    mx >= 0 && my >= 0 && mx < g->mapSize && my < g->mapSize &&
-                    g->grid[my][mx] == CELL_BLUE) {
-                    int base = (BLUE_BASE * g->mult / 10) * mult;
-                    int act = comboOnEat(g, base);
-                    g->score += act;
-                    g->blueCount++;
-                    achOnEatBlue(g);
-                    soundPlayEatBlue();
-                    g->grid[my][mx] = CELL_EMPTY;
-                    gamePlaceBlueFood(g);
-                    if (g->blueCount % RED_TRIGGER == 0 && !g->hasRed)
-                        gamePlaceRedFood(g);
-                    achCheckAll(g, g->gameMode);
-                    return 2;
-                }
-            }
-        }
-    }
+    if (gameApplyMagnet(g, 0, nx, ny, mult))
+        return 2;
 
     return 1;
 }
@@ -513,7 +585,7 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
            ? CELL_WALL : g->grid[ny1][nx1];
         c1 = cellAfterVirtualTailClear(c1, nx1, ny1,
             tail1, moveP1 && !(eat1 || eatRed1),
-            tail2, 0);
+            tail2, moveP2 && !(eat2 || eatRed2));
         if (c1 == CELL_WALL || c1 == CELL_OBS || c1 == CELL_AI || c1 == CELL_SNAKE2) {
             if (itemConsumeShield(g, 0)) moveP1 = 0; else dead1 = 1;
         } else if (c1 == CELL_SNAKE && !ghost1) {
@@ -524,7 +596,7 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
         c2 = (nx2 < 0 || ny2 < 0 || nx2 >= g->mapSize || ny2 >= g->mapSize)
            ? CELL_WALL : g->grid[ny2][nx2];
         c2 = cellAfterVirtualTailClear(c2, nx2, ny2,
-            tail1, 0,
+            tail1, moveP1 && !(eat1 || eatRed1),
             tail2, moveP2 && !(eat2 || eatRed2));
         if (c2 == CELL_WALL || c2 == CELL_OBS || c2 == CELL_AI || c2 == CELL_SNAKE) {
             if (itemConsumeShield(g, 1)) moveP2 = 0; else dead2 = 1;
@@ -556,25 +628,35 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
     /* 计分（双倍道具 + 连击） */
     if (eat1) {
         soundPlayEatBlue();
-        int act = comboOnEat(g, BLUE_BASE * mult1);
-        g->score += act; achOnEatBlue(g);
+        int act = comboOnEatForPlayer(g, BLUE_BASE * mult1, 0);
+        g->score += act;
+        achOnEatBlue(g);
         { TCHAR b[16]; _stprintf(b, _T("+%d"), act);
-          floatTextAdd(g, (float)nx1, (float)ny1, b, RGB(230,230,230), 1.2f); }
+          floatTextAdd(g, (float)nx1, (float)ny1, b,
+              comboCountForPlayer(g, 0) >= 3 ? RGB(255,200,0) : RGB(230,230,230), 1.2f); }
     }
     if (eat2) {
-        /* Note: combo system is shared (P1's combo tracking). For dual,
-           we give P2 the same combo benefit using P1's combo state */
         soundPlayEatBlue();
-        int act = comboOnEat(g, BLUE_BASE * mult2);
-        g->score2 += act; achOnEatBlue(g);
+        int act = comboOnEatForPlayer(g, BLUE_BASE * mult2, 1);
+        g->score2 += act;
+        achOnEatBlue(g);
         { TCHAR b[16]; _stprintf(b, _T("+%d"), act);
-          floatTextAdd(g, (float)nx2, (float)ny2, b, RGB(230,230,230), 1.2f); }
+          floatTextAdd(g, (float)nx2, (float)ny2, b,
+              comboCountForPlayer(g, 1) >= 3 ? RGB(255,200,0) : RGB(230,230,230), 1.2f); }
     }
+    if (moveP1 && !eat1 && !eatRed1) {
+        gameApplyMagnet(g, 0, nx1, ny1, mult1);
+    }
+    if (moveP2 && !eat2 && !eatRed2) {
+        gameApplyMagnet(g, 1, nx2, ny2, mult2);
+    }
+
     if (eatRed1) {
         soundPlayEatRed();
         int base = calcRedScore(g) * mult1;
-        int act = comboOnEat(g, base);
-        g->score += act; g->hasRed = 0;
+        int act = comboOnEatForPlayer(g, base, 0);
+        g->score += act;
+        g->hasRed = 0;
         if (base >= RED_BASE * mult1) achUnlock(g, ACH_RED50);
         { TCHAR b[16]; _stprintf(b, _T("+%d"), act);
           floatTextAdd(g, (float)nx1, (float)ny1, b, RGB(230,70,70), 1.2f); }
@@ -582,8 +664,9 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
     if (eatRed2) {
         soundPlayEatRed();
         int base = calcRedScore(g) * mult2;
-        int act = comboOnEat(g, base);
-        g->score2 += act; g->hasRed = 0;
+        int act = comboOnEatForPlayer(g, base, 1);
+        g->score2 += act;
+        g->hasRed = 0;
         if (base >= RED_BASE * mult2) achUnlock(g, ACH_RED50);
         { TCHAR b[16]; _stprintf(b, _T("+%d"), act);
           floatTextAdd(g, (float)nx2, (float)ny2, b, RGB(230,70,70), 1.2f); }

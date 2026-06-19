@@ -149,6 +149,18 @@ void loadRecordConfig(int *highScore, GameConfig *cfg)
             if (parsed == 2 && parseIntValue(value, &valueInt)) {
                 cfg->aiEnabled = normalizeAiEnabled(valueInt);
             }
+        } else if (strcmp(key, "menuBgImagePath") == 0) {
+            if (parsed == 2) {
+                snprintf(cfg->menuBgImagePath, sizeof(cfg->menuBgImagePath), "%s", value);
+            } else {
+                cfg->menuBgImagePath[0] = '\0';
+            }
+        } else if (strcmp(key, "menuMusicPath") == 0) {
+            if (parsed == 2) {
+                snprintf(cfg->menuMusicPath, sizeof(cfg->menuMusicPath), "%s", value);
+            } else {
+                cfg->menuMusicPath[0] = '\0';
+            }
         }
     }
 
@@ -169,6 +181,10 @@ void saveRecordConfig(int highScore, const GameConfig *cfg)
     fprintf(fp, "mapSize %d\n", cfg ? normalizeMapSize(cfg->mapSize) : MAP_SIZE_LARGE);
     fprintf(fp, "itemMode %d\n", cfg ? normalizeItemMode(cfg->itemMode) : GAMEPLAY_ITEM);
     fprintf(fp, "aiEnabled %d\n", cfg ? normalizeAiEnabled(cfg->aiEnabled) : 1);
+    if (cfg) {
+        fprintf(fp, "menuBgImagePath %s\n", cfg->menuBgImagePath[0] ? cfg->menuBgImagePath : "");
+        fprintf(fp, "menuMusicPath %s\n", cfg->menuMusicPath[0] ? cfg->menuMusicPath : "");
+    }
     if (hasAch) {
         fprintf(fp, "achMask %u\n", achMask);
         fprintf(fp, "achBlueTotal %d\n", achBlueTotal);
@@ -212,8 +228,6 @@ static void rewriteRecordWithAchievements(unsigned mask, int blueTotal, int aiKi
             if (strcmp(key, "achBlueTotal") == 0) continue;
             if (strcmp(key, "achAIKills") == 0) continue;
             if (strcmp(key, "achShieldBlocks") == 0) continue;
-            if (strcmp(key, "menuBgImagePath") == 0) continue;
-            if (strcmp(key, "menuMusicPath") == 0) continue;
 
             if (extraCount < 32) {
                 snprintf(extras[extraCount].k, sizeof(extras[extraCount].k), "%s", key);

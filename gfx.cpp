@@ -815,6 +815,7 @@ static void drawAchNotification(const GameState *g)
             }
         }
     }
+    ((GameState *)g)->achNewUnlock = 0;
 }
 
 static void drawEffectIndicators(const GameState *g, int player, int startX, int startY)
@@ -1263,7 +1264,24 @@ static void drawGameContent(const GameState *g)
     }
 
     drawFloatTexts(g, ox, oy);
-    if (comboCount(g) >= 2) {
+    if (g->gameMode == MODE_DUAL || g->gameMode == MODE_DUAL_TIMED) {
+        int c1 = comboCountForPlayer(g, 0);
+        int c2 = comboCountForPlayer(g, 1);
+        if (c1 >= 2 || c2 >= 2) {
+            settextstyle(FONT_SCALE(20), 0, FONT_UI);
+            settextcolor(CLR_GOLD);
+            if (c1 >= 2) {
+                TCHAR cbuf[32];
+                _stprintf(cbuf, _T("P1 COMBO x%d"), c1);
+                outtextxy(20, 22, cbuf);
+            }
+            if (c2 >= 2) {
+                TCHAR cbuf[32];
+                _stprintf(cbuf, _T("P2 COMBO x%d"), c2);
+                outtextxy(WIN_W - 170, 22, cbuf);
+            }
+        }
+    } else if (comboCount(g) >= 2) {
         TCHAR cbuf[32];
         _stprintf(cbuf, _T("COMBO x%d !"), comboCount(g));
         settextstyle(FONT_SCALE(24), 0, FONT_UI);

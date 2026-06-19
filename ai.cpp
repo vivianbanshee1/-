@@ -48,6 +48,21 @@ static int isPassable(int cell)
     return cell == CELL_EMPTY || cell == CELL_BLUE || cell == CELL_RED;
 }
 
+/* AI 允许的移动目标（含虚拟清尾：移动到自身尾巴允许，
+ * 因为该尾格本回合会被清空）。 */
+static int canStepTo(const GameState *g, const AISnake *a, int x, int y)
+{
+    int cell = g->grid[y][x];
+    if (cell == CELL_AI) {
+        int last = a->len - 1;
+        if (last >= 0 && x == a->body[last].x && y == a->body[last].y)
+            return 1;
+        return 0;
+    }
+
+    return isPassable(cell);
+}
+
 /* 计算 AI 蛇最佳移动方向 */
 static int aiChooseDir(const GameState *g, int aiIdx)
 {
@@ -63,7 +78,6 @@ static int aiChooseDir(const GameState *g, int aiIdx)
     for (d = 0; d < 4; d++) {
         int nx = hx + dirDX[d];
         int ny = hy + dirDY[d];
-        int cell;
 
         /* 不能反向 */
         if (d == opp) continue;
@@ -72,10 +86,8 @@ static int aiChooseDir(const GameState *g, int aiIdx)
         if (nx < 0 || ny < 0 || nx >= g->mapSize || ny >= g->mapSize)
             continue;
 
-        cell = g->grid[ny][nx];
-
         /* 可通过格子 */
-        if (!isPassable(cell)) continue;
+        if (!canStepTo(g, a, nx, ny)) continue;
 
         /* 通过！如果有蓝食物，计算距离 */
         hasValid = 1;
@@ -195,9 +207,17 @@ void aiUpdate(GameState *g, float dt)
 
         cell = g->grid[ny][nx];
 
-        /* 撞障碍/墙/AI身 → 死亡 */
-        if (cell == CELL_WALL || cell == CELL_OBS || cell == CELL_AI) {
+        /* 撞障碍/墙 */
+        if (cell == CELL_WALL || cell == CELL_OBS) {
             aiKill(g, i); continue;
+        }
+
+        /* 撞 AI 身体：尾巴在本回合会被清空，允许走入尾格 */
+        if (cell == CELL_AI) {
+            Position tail = a->body[a->len - 1];
+            if (nx != tail.x || ny != tail.y) {
+                aiKill(g, i); continue;
+            }
         }
 
         /* 撞玩家蛇身 → AI 死亡，玩家得分 */

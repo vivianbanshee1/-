@@ -258,10 +258,14 @@ typedef struct {
     float      aiSpawnCD;      /* AI生成冷却 */
     float      aiTickTimer;    /* AI移动计时器 */
 
-    /* --- 连击系统 --- */
-    float      comboCD;
-    int        comboCount;
-    int        maxCombo;
+    /* --- 连击系统（P1/P2独立） --- */
+    float      comboCD;      /* P1：与单人/共享逻辑兼容 */
+    int        comboCount;   /* P1：当前连击 */
+    int        maxCombo;     /* P1：本局最高连击 */
+
+    float      comboCD2;     /* P2：双人模式独立连击 */
+    int        comboCount2;  /* P2：当前连击 */
+    int        maxCombo2;    /* P2：本局最高连击 */
 
     /* --- 难度递增 --- */
     float      elapsedTime;

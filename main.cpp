@@ -217,6 +217,7 @@ static int runGame(void)
     int mirrorP1Dead = 0, mirrorP2Dead = 0;
     int mirrorEndRequested = 0;
     DWORD lastTick;
+    DWORD lastDualTick;
 
     memset(&g, 0, sizeof(g));
     memset(&g2, 0, sizeof(g2));
@@ -251,6 +252,7 @@ static int runGame(void)
     }
 
     lastTick = GetTickCount();
+    lastDualTick = lastTick;
 
     while (running) {
         if (gfxWindowCloseRequested()) {
@@ -300,6 +302,8 @@ static int runGame(void)
                     gameInit(&g, diff, &cfg);
                     g.gameMode = singleMode;
                     lastTick = GetTickCount();
+                    lastDualTick = lastTick;
+                    g.lastTickP1 = lastTick;
                 } else if (key == 'M' || key == 27) {
                     menuPage = MENU_MAIN;
                     hoverIndex = 0;
@@ -337,7 +341,8 @@ static int runGame(void)
                     g2.gameMode = MODE_DUAL_MIRROR;
                     g.lastTickP1 = GetTickCount();
                     g2.lastTickP1 = GetTickCount();
-                    lastTick = GetTickCount();
+                    lastTick = g.lastTickP1;
+                    lastDualTick = lastTick;
                 } else if (key == 'M' || key == 27) {
                     menuPage = MENU_DUAL_MODE; hoverIndex = 0;
                 } else if (key == 'Q') {
@@ -350,6 +355,9 @@ static int runGame(void)
                     soundPlayMenuConfirm();
                     gameInitDual(&g, diff, dualMode, &cfg);
                     lastTick = GetTickCount();
+                    lastDualTick = lastTick;
+                    g.lastTickP1 = lastTick;
+                    g.lastTickP2 = lastTick;
                 } else if (key == 'M' || key == 27) {
                     menuPage = MENU_DUAL_MODE;
                     hoverIndex = 0;
@@ -514,21 +522,14 @@ static int runGame(void)
                         }
                     }
                 } else {
-                    /* ---- 单人 / 双人经典：使用全局 canMove/dt/lastTick ---- */
-                    int canMove;
-                    if (isSoloMode(g.gameMode))
-                        canMove = (now - lastTick >= (DWORD)g.speed);
-                    else
-                        canMove = (now - g.lastTickP1 >= (DWORD)g.speed)
-                               || (now - g.lastTickP2 >= (DWORD)g.speed2);
-
-                    if (canMove) {
-                        int ret;
+                    if (isSoloMode(g.gameMode)) {
                         float dt = (float)(now - lastTick) / 1000.0f;
+                        int moveReady;
+
                         lastTick = now;
 
-                        if (isSoloMode(g.gameMode)) {
                         gameApplySpeed(&g, gfxIsKeyDown(VK_BOOST_P1), 0);
+                        moveReady = (now - g.lastTickP1 >= (DWORD)g.speed);
                         if (g.config.itemMode == GAMEPLAY_ITEM)
                             itemUpdate(&g, dt);
                         comboUpdate(&g, dt);
@@ -540,27 +541,34 @@ static int runGame(void)
                         if (g.config.aiEnabled)
                             aiUpdate(&g, dt);
                         gameUpdateRedTimer(&g, dt);
-                        ret = gameMove(&g);
-                        if (ret == 0) {
-                            soundPlayGameOver();
-                            achCheckAll(&g, g.gameMode);
-                            int isNewRecord = g.score > g.highScore;
-                            if (isNewRecord) {
-                                g.highScore = g.score;
-                                saveRecordConfig(g.highScore, &cfg);
+
+                        if (moveReady) {
+                            if (gameMove(&g) == 0) {
+                                soundPlayGameOver();
+                                achCheckAll(&g, g.gameMode);
+                                int isNewRecord = g.score > g.highScore;
+                                if (isNewRecord) {
+                                    g.highScore = g.score;
+                                    saveRecordConfig(g.highScore, &cfg);
+                                }
+                                g.deadTick = now;
+                                g.gameState = STATE_DEAD_TITLE;
                             }
-                            g.deadTick = now;
-                            g.gameState = STATE_DEAD_TITLE;
+                            g.lastTickP1 = now;
                         }
                     } else {
+                        int ret = 1;
+                        float dt = (float)(now - lastDualTick) / 1000.0f;
                         int p1Ready = (now - g.lastTickP1 >= (DWORD)g.speed);
                         int p2Ready = (now - g.lastTickP2 >= (DWORD)g.speed2);
+
                         gameApplySpeed(&g,
-                            gfxIsKeyDown(VK_BOOST_P1),
-                            gfxIsKeyDown(VK_BOOST_P2));
+                                      gfxIsKeyDown(VK_BOOST_P1),
+                                      gfxIsKeyDown(VK_BOOST_P2));
                         if (g.config.itemMode == GAMEPLAY_ITEM)
                             itemUpdate(&g, dt);
-                        comboUpdate(&g, dt);
+                        comboUpdateForPlayer(&g, dt, 0);
+                        comboUpdateForPlayer(&g, dt, 1);
                         floatTextUpdate(&g, dt);
                         g.elapsedTime += dt;
                         g.diffFactor = 1.0f + g.elapsedTime / 120.0f;
@@ -569,9 +577,13 @@ static int runGame(void)
                         if (g.config.aiEnabled)
                             aiUpdate(&g, dt);
                         gameUpdateRedTimer(&g, dt);
-                        ret = gameMoveDual(&g, p1Ready, p2Ready);
-                        if (p1Ready) g.lastTickP1 = now;
-                        if (p2Ready) g.lastTickP2 = now;
+
+                        if (p1Ready || p2Ready) {
+                            ret = gameMoveDual(&g, p1Ready, p2Ready);
+                            if (p1Ready) g.lastTickP1 = now;
+                            if (p2Ready) g.lastTickP2 = now;
+                        }
+
                         if (ret == 0) {
                             soundPlayGameOver();
                             achCheckAll(&g, g.gameMode);
@@ -587,7 +599,8 @@ static int runGame(void)
                             g.deadTick = now;
                             g.gameState = STATE_DEAD_TITLE;
                         }
-                    }
+
+                        lastDualTick = now;
                     }
                 }
             }
@@ -620,6 +633,7 @@ static int runGame(void)
                     DWORD resumeNow = GetTickCount();
                     g.gameState = STATE_PLAYING;
                     lastTick = resumeNow;
+                    lastDualTick = resumeNow;
                     resetMoveClocks(&g, &g2, resumeNow);
                 } else if (key == 'Q') {
                     running = 0;
@@ -686,7 +700,8 @@ static int runGame(void)
                     g.gameMode = MODE_DUAL_MIRROR;
                     g2.gameMode = MODE_DUAL_MIRROR;
                     g.lastTickP1 = g2.lastTickP1 = GetTickCount();
-                    lastTick = GetTickCount();
+                    lastTick = g.lastTickP1;
+                    lastDualTick = lastTick;
                 } else if (g.gameMode == MODE_DUAL || g.gameMode == MODE_DUAL_TIMED)
                     gameInitDual(&g, g.difficulty, g.gameMode, &cfg);
                 else {
@@ -696,6 +711,11 @@ static int runGame(void)
                         g.gameMode = MODE_SURVIVAL;
                 }
                 lastTick = GetTickCount();
+                lastDualTick = lastTick;
+                g.lastTickP1 = lastTick;
+                if (g.gameMode == MODE_DUAL || g.gameMode == MODE_DUAL_TIMED) {
+                    g.lastTickP2 = lastTick;
+                }
             } else if (key == 'M') {
                 g.gameState = STATE_MENU;
                 menuPage = MENU_MAIN;
