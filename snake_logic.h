@@ -1,17 +1,15 @@
 /* ============================================================
- *  snake.h - 游戏模型层接口（教学分块版）
+ *  snake_logic.h - 游戏逻辑模块接口
  *
  *  负责：
  *  - 游戏状态/规则相关数据类型与常量
- *  - 游戏规则/逻辑函数的对外声明
+ *  - 核心游戏逻辑函数的对外声明
+ *  - 食物/道具/AI/移动障碍/连击/飘字/成就子系统声明
  *
- *  为便于 3 位同学讲解，按本文件负责范围切为 3 个板块：
- *  1) 第一部分：基础常量与数据结构（规则定义层）
- *  2) 第二部分：状态归一化工具与核心 API（核心控制层）
- *  3) 第三部分：扩展接口说明（其余模块接口见 game_api.h）
+ *  对应实现文件：snake_logic.cpp
  * ============================================================ */
-#ifndef SNAKE_H
-#define SNAKE_H
+#ifndef SNAKE_LOGIC_H
+#define SNAKE_LOGIC_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -324,9 +322,8 @@ static inline int normalizeAiEnabled(int aiEnabled)
 }
 
 /* ===================================================
- *  ===== 第三部分：核心对外 API =====
- *  - 与 main.cpp / 游戏主循环直接交互的核心控制接口
- *  - 其余如音效、渲染、输入、持久化接口详见 game_api.h
+ *  ===== 第三部分：核心游戏逻辑 API =====
+ *  - 与主循环直接交互的核心控制接口
  * =================================================== */
 void gameInit(GameState *g, int difficulty, const GameConfig *cfg);
 void gameInitDual(GameState *g, int difficulty, int mode, const GameConfig *cfg);
@@ -337,9 +334,93 @@ void gameSetBoost(GameState *g, int p1Boost, int p2Boost);
 void gameApplySpeed(GameState *g, int p1Boost, int p2Boost);
 int  gameUpdateTimer(GameState *g, float dt);
 
-/* 以下函数已迁至独立模块，声明见对应头文件：
- *   food.h   — gameUpdateRedTimer, gamePlaceBlueFood, gamePlaceRedFood, calcRedScore
- *   record.h — loadRecordConfig, saveRecordConfig
- */
+/* ===================================================
+ *  ===== 第四部分：食物子系统 =====
+ * =================================================== */
+void gamePlaceBlueFood(GameState *g);
+void gamePlaceRedFood(GameState *g);
+void gameUpdateRedTimer(GameState *g, float dt);
+int  calcRedScore(const GameState *g);
 
-#endif /* SNAKE_H */
+/* ===================================================
+ *  ===== 第五部分：道具子系统 =====
+ * =================================================== */
+#define MAGNET_RANGE 3
+
+void itemUpdate(GameState *g, float dt);
+void itemCollect(GameState *g, int player, int itemType);
+int  itemHasEffect(const GameState *g, int player, int eff);
+float itemTimer(const GameState *g, int player, int eff);
+int  itemShieldCount(const GameState *g, int player);
+int  itemIsNegative(int itemType);
+void itemRemove(GameState *g);
+int  itemConsumeShield(GameState *g, int player);
+
+/* ===================================================
+ *  ===== 第六部分：AI 子系统 =====
+ * =================================================== */
+void aiInit(GameState *g);
+void aiUpdate(GameState *g, float dt);
+void aiMarkAll(GameState *g);
+void aiKill(GameState *g, int index);
+int  aiScoreReward(int aiLen, int mult);
+
+/* ===================================================
+ *  ===== 第七部分：移动障碍子系统 =====
+ * =================================================== */
+#define MOVING_OBS_SPAWN  20.0f
+
+void movingObsInit(GameState *g);
+void movingObsUpdate(GameState *g, float dt);
+
+/* ===================================================
+ *  ===== 第八部分：连击子系统 =====
+ * =================================================== */
+#define COMBO_WINDOW 3.0f
+
+void comboUpdate(GameState *g, float dt);
+void comboUpdateForPlayer(GameState *g, float dt, int player);
+int  comboOnEat(GameState *g, int baseScore);
+int  comboOnEatForPlayer(GameState *g, int baseScore, int player);
+int  comboCount(const GameState *g);
+int  comboCountForPlayer(const GameState *g, int player);
+int  comboMax(const GameState *g);
+int  comboMaxForPlayer(const GameState *g, int player);
+
+/* ===================================================
+ *  ===== 第九部分：飘字子系统 =====
+ * =================================================== */
+void floatTextAdd(GameState *g, float x, float y,
+                  LPCTSTR text, COLORREF color, float life);
+void floatTextUpdate(GameState *g, float dt);
+void floatTextClearAll(GameState *g);
+
+/* ===================================================
+ *  ===== 第十部分：成就子系统 =====
+ * =================================================== */
+#define ACH_MAX 10
+
+/* 成就 ID */
+#define ACH_FIRST100    0   /* 首次得分>100 */
+#define ACH_BLUE100     1   /* 累计吃100个蓝食物 */
+#define ACH_BLUE20      2   /* 单局吃20个蓝食物 */
+#define ACH_COMBO5      3   /* 达成5连击 */
+#define ACH_KILLAI10    4   /* 累计杀死10条AI */
+#define ACH_SHIELD10    5   /* 累计用护盾挡10次 */
+#define ACH_SPEED200    6   /* 60秒内得200分 */
+#define ACH_SURVIVE180  7   /* 生存模式活过180秒 */
+#define ACH_MIRRORWIN   8   /* 镜像对决中获胜 */
+#define ACH_RED50       9   /* 吃到满分红食物(50分) */
+
+unsigned achLoad(void);
+void achLoadState(int *blueTotal, int *aiKills, int *shieldBlocks);
+void achSaveState(unsigned mask, int blueTotal, int aiKills, int shieldBlocks);
+int  achUnlock(GameState *g, int achId);
+int  achCheckAll(GameState *g, int gameMode);
+LPCTSTR achName(int achId);
+LPCTSTR achDesc(int achId);
+void achOnEatBlue(GameState *g);
+void achOnKillAI(GameState *g);
+void achOnShieldBlock(GameState *g);
+
+#endif /* SNAKE_LOGIC_H */
