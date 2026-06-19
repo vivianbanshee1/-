@@ -2,8 +2,8 @@
  *  record.h - 记录持久化接口
  *
  *  负责：
- *  - 读取 record.txt 中的最高分和用户配置
- *  - 保存最高分和用户配置到 record.txt
+ *  - 读取 record.txt 中的最高分与基础配置
+ *  - 保存最高分与基础配置到 record.txt
  * ============================================================ */
 #ifndef RECORD_H
 #define RECORD_H

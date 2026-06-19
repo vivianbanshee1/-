@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <commdlg.h>
 #include <easyx.h>
 
 #include "snake.h"
@@ -21,6 +22,67 @@
 #include "gfx.h"
 #include "input.h"
 #include "sound.h"
+
+static void closeHostConsoleIfAny(void)
+{
+    HWND consoleWnd = GetConsoleWindow();
+    if (!consoleWnd) {
+        return;
+    }
+
+    FreeConsole();
+}
+
+/* ===================================================
+ *  文件选择对话框
+ * =================================================== */
+static int pickLocalFile(char *outPath, size_t outSize, const char *title, const char *filter)
+{
+    OPENFILENAMEA ofn;
+    char pathBuffer[MAX_PATH];
+
+    if (!outPath || outSize == 0) return 0;
+
+    memset(pathBuffer, 0, sizeof(pathBuffer));
+    memset(&ofn, 0, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFile = pathBuffer;
+    ofn.nMaxFile = (DWORD) sizeof(pathBuffer);
+    ofn.lpstrFilter = filter;
+    ofn.nFilterIndex = 1;
+    ofn.lpstrTitle = title;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_PATHMUSTEXIST | OFN_EXPLORER;
+
+    if (!GetOpenFileNameA(&ofn)) {
+        return 0;
+    }
+
+    snprintf(outPath, outSize, "%s", pathBuffer);
+    return 1;
+}
+
+static void pickLocalMusicFile(char *outPath, size_t outSize)
+{
+    static const char filter[] =
+        "音频文件 (*.wav;*.mp3;*.ogg;*.flac;*.aac;*.m4a;*.mid;*.wma)\0"
+        "*.wav;*.mp3;*.ogg;*.flac;*.aac;*.m4a;*.mid;*.wma\0"
+        "所有文件 (*.*)\0"
+        "*.*\0";
+
+    pickLocalFile(outPath, outSize, "选择背景音乐", filter);
+}
+
+static void pickLocalImageFile(char *outPath, size_t outSize)
+{
+    static const char filter[] =
+        "图片文件 (*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp)\0"
+        "*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp\0"
+        "所有文件 (*.*)\0"
+        "*.*\0";
+
+    pickLocalFile(outPath, outSize, "选择背景图片", filter);
+}
 
 /* ===================================================
  *  菜单辅助函数
@@ -61,12 +123,74 @@ static void toggleAiEnabled(GameConfig *cfg)
     cfg->aiEnabled = normalizeAiEnabled(!cfg->aiEnabled);
 }
 
+static void loadMusicFromDisk(GameConfig *cfg)
+{
+    char filePath[MAX_PATH];
+
+    if (!cfg) return;
+
+    filePath[0] = '\0';
+    pickLocalMusicFile(filePath, sizeof(filePath));
+    if (filePath[0] != '\0') {
+        snprintf(cfg->menuMusicPath, sizeof(cfg->menuMusicPath), "%s", filePath);
+        soundSetBackgroundMusic(filePath);
+    }
+}
+
+static void loadImageFromDisk(GameConfig *cfg)
+{
+    char filePath[MAX_PATH];
+
+    if (!cfg) return;
+
+    filePath[0] = '\0';
+    pickLocalImageFile(filePath, sizeof(filePath));
+    if (filePath[0] != '\0') {
+        snprintf(cfg->menuBgImagePath, sizeof(cfg->menuBgImagePath), "%s", filePath);
+        gfxSetMenuBackgroundImage(filePath);
+    }
+}
+
+static void clearCustomMenuBgImage(GameConfig *cfg)
+{
+    if (!cfg) return;
+
+    gfxClearMenuBackgroundImage();
+    cfg->menuBgImagePath[0] = '\0';
+}
+
+static void clearCustomMenuMusic(GameConfig *cfg)
+{
+    if (!cfg) return;
+
+    soundStopBackgroundMusic();
+    cfg->menuMusicPath[0] = '\0';
+}
+
+static int isSoloMode(int gameMode)
+{
+    return gameMode == MODE_SINGLE || gameMode == MODE_SURVIVAL;
+}
+
+static int pollMirrorEndButton(void)
+{
+    ExMessage em;
+    int hit = 0;
+    while (peekmessage(&em, EX_MOUSE, true)) {
+        if (em.message == WM_LBUTTONDOWN &&
+            gfxHitMirrorEndButton(em.x, em.y)) {
+            hit = 1;
+        }
+    }
+    return hit;
+}
+
 /* 暂停恢复时重置各模式移动时钟，避免长时间停顿导致一次性多步 */
 static void resetMoveClocks(GameState *g, GameState *g2, DWORD now)
 {
     if (!g) return;
 
-    if (g->gameMode == MODE_SINGLE || g->gameMode == MODE_SURVIVAL) {
+    if (isSoloMode(g->gameMode)) {
         g->lastTickP1 = now;
     } else if (g->gameMode == MODE_DUAL || g->gameMode == MODE_DUAL_TIMED) {
         g->lastTickP1 = now;
@@ -118,9 +242,22 @@ static int runGame(void)
     /* 初始化图形系统 */
     gfxInit();
     soundInit();
+
+    if (cfg.menuBgImagePath[0] != '\0') {
+        gfxSetMenuBackgroundImage(cfg.menuBgImagePath);
+    }
+    if (cfg.menuMusicPath[0] != '\0') {
+        soundSetBackgroundMusic(cfg.menuMusicPath);
+    }
+
     lastTick = GetTickCount();
 
     while (running) {
+        if (gfxWindowCloseRequested()) {
+            running = 0;
+            break;
+        }
+
         /* ==================== 菜单状态 ==================== */
         if (g.gameState == STATE_MENU) {
             int key;
@@ -130,7 +267,22 @@ static int runGame(void)
             if (key == 'q') key = 'Q';
             if (key == 'm') key = 'M';
 
-            if (menuPage == MENU_MAIN) {
+            if (gfxWindowCloseRequested()) {
+                running = 0;
+            }
+            else if (key == GFX_MENU_ACTION_MUSIC) {
+                loadMusicFromDisk(&cfg);
+            }
+            else if (key == GFX_MENU_ACTION_IMAGE) {
+                loadImageFromDisk(&cfg);
+            }
+            else if (key == GFX_MENU_ACTION_CLEAR_IMAGE) {
+                clearCustomMenuBgImage(&cfg);
+            }
+            else if (key == GFX_MENU_ACTION_CLEAR_MUSIC) {
+                clearCustomMenuMusic(&cfg);
+            }
+            else if (menuPage == MENU_MAIN) {
                 if (key == '1') { singleMode = MODE_SINGLE; menuPage = MENU_SINGLE_DIFF; hoverIndex = 0; }
                 else if (key == '2') { menuPage = MENU_DUAL_MODE; hoverIndex = 0; }
                 else if (key == '3') { menuPage = MENU_HOWTOPLAY; hoverIndex = 0; }
@@ -140,9 +292,13 @@ static int runGame(void)
             }
             else if (menuPage == MENU_SINGLE_DIFF) {
                 int diff = menuChoiceToDifficulty(key);
-                if (diff >= 0) {
+                if (diff >= 0 || key == '4') {
+                    singleMode = (key == '4') ? MODE_SURVIVAL : MODE_SINGLE;
+                    if (singleMode == MODE_SURVIVAL)
+                        diff = 1;
                     soundPlayMenuConfirm();
                     gameInit(&g, diff, &cfg);
+                    g.gameMode = singleMode;
                     lastTick = GetTickCount();
                 } else if (key == 'M' || key == 27) {
                     menuPage = MENU_MAIN;
@@ -244,24 +400,36 @@ static int runGame(void)
         }
         /* ==================== 游戏进行中 ==================== */
         else if (g.gameState == STATE_PLAYING) {
-            int key = gfxGetKey();
+            int key;
             DWORD now = GetTickCount();
+
+            if (g.gameMode == MODE_DUAL_MIRROR &&
+                mirrorP1Dead != mirrorP2Dead &&
+                pollMirrorEndButton()) {
+                mirrorEndRequested = 1;
+            }
+
+            key = gfxGetKey();
 
             if (key == 'q') key = 'Q';
             if (key == 'p') key = 'P';
 
-            if (key == 'P') {
+            if (gfxWindowCloseRequested()) {
+                running = 0;
+            }
+
+            if (key == 'P' && running) {
                 soundPlayPause();
                 DWORD pauseNow = GetTickCount();
                 g.gameState = STATE_PAUSED;
                 lastTick = pauseNow;
                 resetMoveClocks(&g, &g2, pauseNow);
-            } else if (key == 'Q') {
+            } else if (key == 'Q' && running) {
                 running = 0;
-            } else {
+            } else if (running) {
                 /* 单人：WASD 和方向键都控制 P1
                  * 双人：WASD 控制 P1，方向键控制 P2 */
-                if (g.gameMode == MODE_SINGLE) {
+                if (isSoloMode(g.gameMode)) {
                     if (key == 'w' || key == 'W' || key == KEY_UP) gameSetDir(&g.snake, DIR_UP);
                     if (key == 's' || key == 'S' || key == KEY_DOWN) gameSetDir(&g.snake, DIR_DOWN);
                     if (key == 'a' || key == 'A' || key == KEY_LEFT) gameSetDir(&g.snake, DIR_LEFT);
@@ -287,12 +455,69 @@ static int runGame(void)
                     if (key == KEY_RIGHT) gameSetDir(&g.snake2, DIR_RIGHT);
                 }
 
-                {
+                if (g.gameMode == MODE_DUAL_MIRROR) {
+                    /* ---- 镜像对决：独立 tick，不使用全局 canMove/dt/lastTick ---- */
+                    int p1Ready = !mirrorP1Dead &&
+                        (now - g.lastTickP1 >= (DWORD)g.speed);
+                    int p2Ready = !mirrorP2Dead &&
+                        (now - g2.lastTickP1 >= (DWORD)g2.speed);
+
+                    if (p1Ready || p2Ready || mirrorEndRequested) {
+                        if (p1Ready) {
+                            float dt1 = (float)(now - g.lastTickP1) / 1000.0f;
+                            gameApplySpeed(&g, gfxIsKeyDown(VK_BOOST_P1), 0);
+                            if (g.config.itemMode == GAMEPLAY_ITEM)
+                                itemUpdate(&g, dt1);
+                            comboUpdate(&g, dt1);
+                            floatTextUpdate(&g, dt1);
+                            g.elapsedTime += dt1;
+                            g.diffFactor = 1.0f + g.elapsedTime / 120.0f;
+                            if (g.diffFactor > 3.0f) g.diffFactor = 3.0f;
+                            movingObsUpdate(&g, dt1);
+                            if (g.config.aiEnabled)
+                                aiUpdate(&g, dt1);
+                            gameUpdateRedTimer(&g, dt1);
+                            if (gameMove(&g) == 0) { achCheckAll(&g, g.gameMode); mirrorP1Dead = 1; }
+                            g.lastTickP1 = now;
+                        }
+                        if (p2Ready) {
+                            float dt2 = (float)(now - g2.lastTickP1) / 1000.0f;
+                            /* 镜像 P2 的提速键通过 p1Boost 参数传入：
+                             * gameApplySpeed 中 p1Boost→g->speed，P2 实际走 g2.snake/g2.speed */
+                            gameApplySpeed(&g2, gfxIsKeyDown(VK_BOOST_P2), 0);
+                            if (g2.config.itemMode == GAMEPLAY_ITEM)
+                                itemUpdate(&g2, dt2);
+                            comboUpdate(&g2, dt2);
+                            floatTextUpdate(&g2, dt2);
+                            g2.elapsedTime += dt2;
+                            g2.diffFactor = 1.0f + g2.elapsedTime / 120.0f;
+                            if (g2.diffFactor > 3.0f) g2.diffFactor = 3.0f;
+                            movingObsUpdate(&g2, dt2);
+                            if (g2.config.aiEnabled)
+                                aiUpdate(&g2, dt2);
+                            gameUpdateRedTimer(&g2, dt2);
+                            if (gameMove(&g2) == 0) { achCheckAll(&g2, g2.gameMode); mirrorP2Dead = 1; }
+                            g2.lastTickP1 = now;
+                        }
+                        /* 检测"立即结算"按钮点击（鼠标消息不再被 gfxGetKey 消费，可正常检测） */
+                        if (mirrorP1Dead != mirrorP2Dead && pollMirrorEndButton())
+                            mirrorEndRequested = 1;
+                        if ((mirrorP1Dead && mirrorP2Dead) || mirrorEndRequested) {
+                            soundPlayGameOver();
+                            if (g.score > g2.score) g.winner = WIN_P1;
+                            else if (g2.score > g.score) g.winner = WIN_P2;
+                            else g.winner = WIN_DRAW;
+                            if (g.winner != WIN_DRAW)
+                                achUnlock(&g, ACH_MIRRORWIN);
+                            g.deadTick = now;
+                            g.gameState = STATE_DEAD_TITLE;
+                        }
+                    }
+                } else {
+                    /* ---- 单人 / 双人经典：使用全局 canMove/dt/lastTick ---- */
                     int canMove;
-                    if (g.gameMode == MODE_SINGLE)
+                    if (isSoloMode(g.gameMode))
                         canMove = (now - lastTick >= (DWORD)g.speed);
-                    else if (g.gameMode == MODE_DUAL_MIRROR)
-                        canMove = 1;  /* 镜像总是检查 tick */
                     else
                         canMove = (now - g.lastTickP1 >= (DWORD)g.speed)
                                || (now - g.lastTickP2 >= (DWORD)g.speed2);
@@ -302,7 +527,7 @@ static int runGame(void)
                         float dt = (float)(now - lastTick) / 1000.0f;
                         lastTick = now;
 
-                        if (g.gameMode == MODE_SINGLE) {
+                        if (isSoloMode(g.gameMode)) {
                         gameApplySpeed(&g, gfxIsKeyDown(VK_BOOST_P1), 0);
                         if (g.config.itemMode == GAMEPLAY_ITEM)
                             itemUpdate(&g, dt);
@@ -324,64 +549,6 @@ static int runGame(void)
                                 g.highScore = g.score;
                                 saveRecordConfig(g.highScore, &cfg);
                             }
-                            g.deadTick = now;
-                            g.gameState = STATE_DEAD_TITLE;
-                        }
-                    } else if (g.gameMode == MODE_DUAL_MIRROR) {
-                        /* 镜像对决：各自独立 tick */
-                        int p1Ready = !mirrorP1Dead &&
-                            (now - g.lastTickP1 >= (DWORD)g.speed);
-                        int p2Ready = !mirrorP2Dead &&
-                            (now - g2.lastTickP1 >= (DWORD)g2.speed);
-
-                        if (p1Ready) {
-                            gameApplySpeed(&g, gfxIsKeyDown(VK_BOOST_P1), 0);
-                            if (g.config.itemMode == GAMEPLAY_ITEM)
-                            itemUpdate(&g, dt);
-                            comboUpdate(&g, dt);
-                            floatTextUpdate(&g, dt);
-                            g.elapsedTime += dt;
-                            g.diffFactor = 1.0f + g.elapsedTime / 120.0f;
-                            if (g.diffFactor > 3.0f) g.diffFactor = 3.0f;
-                            movingObsUpdate(&g, dt);
-                            if (g.config.aiEnabled)
-                            aiUpdate(&g, dt);
-                            gameUpdateRedTimer(&g, dt);
-                            if (gameMove(&g) == 0) { achCheckAll(&g, g.gameMode); mirrorP1Dead = 1; }
-                            g.lastTickP1 = now;
-                        }
-                        if (p2Ready) {
-                            gameApplySpeed(&g2, 0, gfxIsKeyDown(VK_BOOST_P2));
-                            if (g2.config.itemMode == GAMEPLAY_ITEM)
-                                itemUpdate(&g2, dt);
-                            comboUpdate(&g2, dt);
-                            floatTextUpdate(&g2, dt);
-                            g2.elapsedTime += dt;
-                            g2.diffFactor = 1.0f + g2.elapsedTime / 120.0f;
-                            if (g2.diffFactor > 3.0f) g2.diffFactor = 3.0f;
-                            movingObsUpdate(&g2, dt);
-                            if (g2.config.aiEnabled)
-                                aiUpdate(&g2, dt);
-                            gameUpdateRedTimer(&g2, dt);
-                            if (gameMove(&g2) == 0) { achCheckAll(&g2, g2.gameMode); mirrorP2Dead = 1; }
-                            g2.lastTickP1 = now;
-                        }
-                        /* 检测"立即结算"按钮点击 */
-                        if (mirrorP1Dead != mirrorP2Dead) {
-                            ExMessage em;
-                            while (peekmessage(&em, EX_MOUSE, true)) {
-                                if (em.message == WM_LBUTTONDOWN &&
-                                    gfxHitMirrorEndButton(em.x, em.y))
-                                    mirrorEndRequested = 1;
-                            }
-                        }
-                        if ((mirrorP1Dead && mirrorP2Dead) || mirrorEndRequested) {
-                            soundPlayGameOver();
-                            if (g.score > g2.score) g.winner = WIN_P1;
-                            else if (g2.score > g.score) g.winner = WIN_P2;
-                            else g.winner = WIN_DRAW;
-                            if (g.winner != WIN_DRAW)
-                                achUnlock(&g, ACH_MIRRORWIN);
                             g.deadTick = now;
                             g.gameState = STATE_DEAD_TITLE;
                         }
@@ -421,33 +588,42 @@ static int runGame(void)
                             g.gameState = STATE_DEAD_TITLE;
                         }
                     }
-                }
+                    }
                 }
             }
-            if (g.gameMode == MODE_DUAL_MIRROR)
-                gfxDrawMirrorGame(&g, &g2, mirrorP1Dead, mirrorP2Dead);
-            else
-                gfxDrawGame(&g);
+
+            if (running) {
+                if (g.gameMode == MODE_DUAL_MIRROR)
+                    gfxDrawMirrorGame(&g, &g2, mirrorP1Dead, mirrorP2Dead);
+                else
+                    gfxDrawGame(&g);
+            }
         }
         /* ==================== 暂停 ==================== */
         else if (g.gameState == STATE_PAUSED) {
             int key = gfxGetKey();
             if (key == 'q') key = 'Q';
             if (key == 'p') key = 'P';
-            if (g.gameMode == MODE_DUAL_MIRROR) {
-                gfxDrawMirrorGame(&g, &g2, mirrorP1Dead, mirrorP2Dead);
-            } else {
-                gfxDrawGame(&g);
-            }
-            gfxDrawPause();
-            if (key == 'P') {
-                soundPlayResume();
-                DWORD resumeNow = GetTickCount();
-                g.gameState = STATE_PLAYING;
-                lastTick = resumeNow;
-                resetMoveClocks(&g, &g2, resumeNow);
-            } else if (key == 'Q') {
+
+            if (gfxWindowCloseRequested()) {
                 running = 0;
+            } else {
+                if (g.gameMode == MODE_DUAL_MIRROR) {
+                    gfxDrawMirrorGame(&g, &g2, mirrorP1Dead, mirrorP2Dead);
+                } else {
+                    gfxDrawGame(&g);
+                }
+                gfxDrawPause();
+
+                if (key == 'P') {
+                    soundPlayResume();
+                    DWORD resumeNow = GetTickCount();
+                    g.gameState = STATE_PLAYING;
+                    lastTick = resumeNow;
+                    resetMoveClocks(&g, &g2, resumeNow);
+                } else if (key == 'Q') {
+                    running = 0;
+                }
             }
         }
         /* ==================== 死亡标题 ==================== */
@@ -465,7 +641,9 @@ static int runGame(void)
                 gfxDrawDeadTitle(&g, remaining);
             }
 
-            if (key == 'Q') {
+            if (gfxWindowCloseRequested()) {
+                running = 0;
+            } else if (key == 'Q') {
                 running = 0;
             } else if (remaining > 0) {
                 /* 缓冲期内：忽略任意键转移（仅允许 Q 退出） */
@@ -493,7 +671,9 @@ static int runGame(void)
             else
                 gfxDrawGameOver(&g, g.score, g.highScore, g.score >= g.highScore && g.score > 0, hoverIndex);
 
-            if (key == 'R') {
+            if (gfxWindowCloseRequested()) {
+                running = 0;
+            } else if (key == 'R') {
                 soundPlayMenuConfirm();
                 if (g.gameMode == MODE_DUAL_MIRROR) {
                     unsigned seed = (unsigned)time(NULL);
@@ -509,7 +689,12 @@ static int runGame(void)
                     lastTick = GetTickCount();
                 } else if (g.gameMode == MODE_DUAL || g.gameMode == MODE_DUAL_TIMED)
                     gameInitDual(&g, g.difficulty, g.gameMode, &cfg);
-                else gameInit(&g, g.difficulty, &cfg);
+                else {
+                    int restartMode = g.gameMode;
+                    gameInit(&g, g.difficulty, &cfg);
+                    if (restartMode == MODE_SURVIVAL)
+                        g.gameMode = MODE_SURVIVAL;
+                }
                 lastTick = GetTickCount();
             } else if (key == 'M') {
                 g.gameState = STATE_MENU;
@@ -523,7 +708,9 @@ static int runGame(void)
         Sleep(16);
     }
 
+    saveRecordConfig(g.highScore, &cfg);
     gfxClose();
+    closeHostConsoleIfAny();
     return 0;
 }
 

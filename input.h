@@ -27,4 +27,7 @@ int gfxGetMenuInput(int *hoverIndex);
 /* 获取死亡结算界面的输入，自动更新悬停索引 */
 int gfxGetDeadInput(int *hoverIndex);
 
+/* 检测窗口是否请求关闭（WM_CLOSE / WM_QUIT） */
+int gfxWindowCloseRequested(void);
+
 #endif /* INPUT_H */

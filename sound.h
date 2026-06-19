@@ -21,4 +21,10 @@ void soundPlayResume(void);
 void soundPlayShieldBlock(void);
 void soundPlayGameOver(void);
 
+/* 自定义背景音乐（如游戏进行中的循环BGM） */
+int soundSetBackgroundMusic(const char *filePath);
+void soundPlayBackgroundMusic(void);
+void soundStopBackgroundMusic(void);
+int  soundHasBackgroundMusic(void);
+
 #endif /* SOUND_H */

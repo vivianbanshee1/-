@@ -13,7 +13,29 @@
 #include "item.h"
 
 static int s_soundEnabled = 1;
-static char s_soundDir[MAX_PATH] = "assets\\sounds";
+static char s_soundDir[MAX_PATH] = "assets/sounds";
+
+static const char BGM_ALIAS[] = "SnakeBGM";
+static char s_bgmPath[MAX_PATH] = "";
+static int s_bgmLoaded = 0;
+static int s_bgmPlaying = 0;
+
+static void closeBackgroundMusicNoLock(void)
+{
+    char cmd[MAX_PATH + 64];
+
+    if (!s_bgmLoaded) return;
+
+    snprintf(cmd, sizeof(cmd), "close %s", BGM_ALIAS);
+    mciSendStringA(cmd, NULL, 0, NULL);
+    snprintf(cmd, sizeof(cmd), "stop %s", BGM_ALIAS);
+    mciSendStringA(cmd, NULL, 0, NULL);
+    snprintf(cmd, sizeof(cmd), "seek %s to start", BGM_ALIAS);
+    mciSendStringA(cmd, NULL, 0, NULL);
+
+    s_bgmLoaded = 0;
+    s_bgmPlaying = 0;
+}
 
 static int fileExists(const char *path)
 {
@@ -87,11 +109,92 @@ void soundInit(void)
 void soundSetEnabled(int enabled)
 {
     s_soundEnabled = (enabled != 0);
+
+    if (!s_soundEnabled) {
+        soundStopBackgroundMusic();
+    } else if (s_bgmLoaded) {
+        soundPlayBackgroundMusic();
+    }
 }
 
 int soundIsEnabled(void)
 {
     return s_soundEnabled;
+}
+
+int soundSetBackgroundMusic(const char *filePath)
+{
+    char cmd[3 * MAX_PATH];
+    int ret;
+
+    closeBackgroundMusicNoLock();
+    s_bgmPath[0] = '\0';
+
+    if (filePath == NULL || *filePath == '\0') {
+        return 0;
+    }
+
+    if (!fileExists(filePath)) {
+        return 0;
+    }
+
+    snprintf(s_bgmPath, sizeof(s_bgmPath), "%s", filePath);
+
+    snprintf(cmd, sizeof(cmd), "open \"%s\" type mpegvideo alias %s", filePath, BGM_ALIAS);
+    ret = mciSendStringA(cmd, NULL, 0, NULL);
+
+    if (ret != 0) {
+        snprintf(cmd, sizeof(cmd), "open \"%s\" alias %s", filePath, BGM_ALIAS);
+        ret = mciSendStringA(cmd, NULL, 0, NULL);
+    }
+
+    if (ret != 0) {
+        s_bgmPath[0] = '\0';
+        return 0;
+    }
+
+    s_bgmLoaded = 1;
+    s_bgmPlaying = 0;
+
+    if (s_soundEnabled) {
+        soundPlayBackgroundMusic();
+    }
+
+    return 1;
+}
+
+void soundPlayBackgroundMusic(void)
+{
+    char cmd[MAX_PATH + 64];
+
+    if (!s_bgmLoaded || !s_soundEnabled || s_bgmPlaying) {
+        return;
+    }
+
+    snprintf(cmd, sizeof(cmd), "play %s repeat", BGM_ALIAS);
+    if (mciSendStringA(cmd, NULL, 0, NULL) == 0) {
+        s_bgmPlaying = 1;
+    }
+}
+
+void soundStopBackgroundMusic(void)
+{
+    char cmd[MAX_PATH + 64];
+
+    if (!s_bgmLoaded && s_bgmPlaying == 0) {
+        return;
+    }
+
+    snprintf(cmd, sizeof(cmd), "stop %s", BGM_ALIAS);
+    mciSendStringA(cmd, NULL, 0, NULL);
+    snprintf(cmd, sizeof(cmd), "seek %s to start", BGM_ALIAS);
+    mciSendStringA(cmd, NULL, 0, NULL);
+    s_bgmPlaying = 0;
+}
+
+int soundHasBackgroundMusic(void)
+{
+    return s_bgmLoaded != 0;
 }
 
 void soundPlayMenuConfirm(void)

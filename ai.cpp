@@ -40,11 +40,12 @@ static int manhattan(int x1, int y1, int x2, int y2)
     return abs(x1 - x2) + abs(y1 - y2);
 }
 
-/* 格子是否可通行（对AI而言：空格、蓝食物、红食物、道具均可） */
+/* 格子是否可通行。
+ * CELL_ITEM 故意排除：AI 不拾取道具。若未来需要 AI 踩道具，
+ * 必须在移动时同时调用 itemRemove，否则道具过期会把 AI 身体格清空。 */
 static int isPassable(int cell)
 {
-    return cell == CELL_EMPTY || cell == CELL_BLUE ||
-           cell == CELL_RED || cell == CELL_ITEM;
+    return cell == CELL_EMPTY || cell == CELL_BLUE || cell == CELL_RED;
 }
 
 /* 计算 AI 蛇最佳移动方向 */
@@ -68,7 +69,7 @@ static int aiChooseDir(const GameState *g, int aiIdx)
         if (d == opp) continue;
 
         /* 边界检查 */
-        if (nx <= 0 || ny <= 0 || nx >= g->mapSize - 1 || ny >= g->mapSize - 1)
+        if (nx < 0 || ny < 0 || nx >= g->mapSize || ny >= g->mapSize)
             continue;
 
         cell = g->grid[ny][nx];
@@ -104,7 +105,7 @@ static int trySpawnAt(GameState *g, int startX, int startY, int dir, int len)
 
     /* 检查在前 len 步是否都安全 */
     for (i = 0; i < len; i++) {
-        if (x <= 0 || y <= 0 || x >= g->mapSize - 1 || y >= g->mapSize - 1)
+        if (x < 0 || y < 0 || x >= g->mapSize || y >= g->mapSize)
             return 0;
         if (!isPassable(g->grid[y][x])) return 0;
         x += dirDX[dir];
@@ -139,8 +140,8 @@ void aiUpdate(GameState *g, float dt)
             int len = AI_MIN_LEN + rand() % (AI_MAX_LEN - AI_MIN_LEN + 1);
             int attempts = g->mapSize * g->mapSize;
             while (attempts-- > 0) {
-                int sx = 2 + rand() % (g->mapSize - 4);
-                int sy = 2 + rand() % (g->mapSize - 4);
+                int sx = rand() % g->mapSize;
+                int sy = rand() % g->mapSize;
                 d = rand() % 4;
                 if (trySpawnAt(g, sx, sy, d, len)) {
                     /* 生成！ */
@@ -188,7 +189,7 @@ void aiUpdate(GameState *g, float dt)
         ny = a->body[0].y + dirDY[a->dir];
 
         /* 边界 */
-        if (nx <= 0 || ny <= 0 || nx >= g->mapSize - 1 || ny >= g->mapSize - 1) {
+        if (nx < 0 || ny < 0 || nx >= g->mapSize || ny >= g->mapSize) {
             aiKill(g, i); continue; /* 不递增 i */
         }
 
@@ -213,13 +214,15 @@ void aiUpdate(GameState *g, float dt)
 
         /* 吃蓝食物 */
         if (cell == CELL_BLUE) {
-            Position tail = a->body[a->len - 1];
-            if (g->grid[tail.y][tail.x] == CELL_AI)
-                g->grid[tail.y][tail.x] = CELL_EMPTY;
+            int grow = (a->len < MAX_LEN);
+            if (!grow) {
+                Position tail = a->body[a->len - 1];
+                if (g->grid[tail.y][tail.x] == CELL_AI)
+                    g->grid[tail.y][tail.x] = CELL_EMPTY;
+            }
             {
                 int k;
-                int newLen = a->len + 1;
-                if (newLen > MAX_LEN) newLen = MAX_LEN;
+                int newLen = a->len + (grow ? 1 : 0);
                 for (k = newLen - 1; k > 0; k--)
                     a->body[k] = a->body[k - 1];
                 a->body[0].x = nx;

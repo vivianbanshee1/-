@@ -62,17 +62,13 @@ static void applyDualDifficulty(GameState *g, int difficulty)
     g->baseSpeed2 = g->speed;
 }
 
-/* 初始化网格，设置边框墙 */
+/* 初始化网格为全空（边界由坐标检查处理，不再占用内部格子） */
 static void setupGrid(GameState *g)
 {
     int x, y;
     for (y = 0; y < GRID_SIZE; y++) {
         for (x = 0; x < GRID_SIZE; x++) {
-            if (x < g->mapSize && y < g->mapSize &&
-                (x == 0 || y == 0 || x == g->mapSize - 1 || y == g->mapSize - 1))
-                g->grid[y][x] = CELL_WALL;
-            else
-                g->grid[y][x] = CELL_EMPTY;
+            g->grid[y][x] = CELL_EMPTY;
         }
     }
 }
@@ -84,8 +80,8 @@ static void placeObstacles(GameState *g)
     for (i = 0; i < g->obsCount && i < MAX_OBS; i++) {
         int x, y;
         do {
-            x = 1 + rand() % (g->mapSize - 2);
-            y = 1 + rand() % (g->mapSize - 2);
+            x = rand() % g->mapSize;
+            y = rand() % g->mapSize;
         } while (g->grid[y][x] != CELL_EMPTY);
         g->obs[i].x = x;
         g->obs[i].y = y;
@@ -126,6 +122,22 @@ static void advanceSnake(Snake *s, int nx, int ny, int grow)
     s->lastDir = s->dir;
 }
 
+static int samePos(Position p, int x, int y)
+{
+    return p.x == x && p.y == y;
+}
+
+static int cellAfterVirtualTailClear(int cell, int x, int y,
+                                     Position tail1, int clearTail1,
+                                     Position tail2, int clearTail2)
+{
+    if (clearTail1 && cell == CELL_SNAKE && samePos(tail1, x, y))
+        return CELL_EMPTY;
+    if (clearTail2 && cell == CELL_SNAKE2 && samePos(tail2, x, y))
+        return CELL_EMPTY;
+    return cell;
+}
+
 /* ===================================================
  *  游戏逻辑函数
  * =================================================== */
@@ -143,6 +155,14 @@ void gameInit(GameState *g, int difficulty, const GameConfig *cfg)
     savedCfg.mapSize = cfg ? normalizeMapSize(cfg->mapSize) : MAP_SIZE_LARGE;
     savedCfg.itemMode = cfg ? normalizeItemMode(cfg->itemMode) : GAMEPLAY_ITEM;
     savedCfg.aiEnabled = cfg ? normalizeAiEnabled(cfg->aiEnabled) : 1;
+    if (cfg) {
+        snprintf(savedCfg.menuBgImagePath, sizeof(savedCfg.menuBgImagePath), "%s", cfg->menuBgImagePath);
+        snprintf(savedCfg.menuMusicPath, sizeof(savedCfg.menuMusicPath), "%s", cfg->menuMusicPath);
+    } else {
+        savedCfg.menuBgImagePath[0] = '\0';
+        savedCfg.menuMusicPath[0] = '\0';
+    }
+
 
     memset(g, 0, sizeof(*g));
     g->highScore = highScore;
@@ -166,10 +186,10 @@ void gameInit(GameState *g, int difficulty, const GameConfig *cfg)
             tries++;
         } while (tries < 16 &&
                  (rx < 3 || ry < 3 || rx > g->mapSize - 4 || ry > g->mapSize - 4));
-        if (rx < 3) rx = 3;
-        if (ry < 3) ry = 3;
-        if (rx > g->mapSize - 4) rx = g->mapSize - 4;
-        if (ry > g->mapSize - 4) ry = g->mapSize - 4;
+        if (rx < 1) rx = 1;
+        if (ry < 1) ry = 1;
+        if (rx > g->mapSize - 2) rx = g->mapSize - 2;
+        if (ry > g->mapSize - 2) ry = g->mapSize - 2;
         /* 让蛇头朝上，身子在下方（不影响随机性，只影响渲染） */
         g->snake.body[0].x = rx;
         g->snake.body[0].y = ry;
@@ -182,7 +202,7 @@ void gameInit(GameState *g, int difficulty, const GameConfig *cfg)
             int bx, by;
             for (by = ry; by <= ry + 2; by++)
                 for (bx = rx; bx <= rx; bx++)
-                    if (g->grid[by][bx] != CELL_WALL)
+                    if (g->grid[by][bx] != CELL_OBS)
                         g->grid[by][bx] = CELL_SNAKE;
         }
     }
@@ -217,6 +237,14 @@ void gameInitDual(GameState *g, int difficulty, int mode, const GameConfig *cfg)
     savedCfg.mapSize = cfg ? normalizeMapSize(cfg->mapSize) : MAP_SIZE_LARGE;
     savedCfg.itemMode = cfg ? normalizeItemMode(cfg->itemMode) : GAMEPLAY_ITEM;
     savedCfg.aiEnabled = cfg ? normalizeAiEnabled(cfg->aiEnabled) : 1;
+    if (cfg) {
+        snprintf(savedCfg.menuBgImagePath, sizeof(savedCfg.menuBgImagePath), "%s", cfg->menuBgImagePath);
+        snprintf(savedCfg.menuMusicPath, sizeof(savedCfg.menuMusicPath), "%s", cfg->menuMusicPath);
+    } else {
+        savedCfg.menuBgImagePath[0] = '\0';
+        savedCfg.menuMusicPath[0] = '\0';
+    }
+
 
     memset(g, 0, sizeof(*g));
     g->highScore = highScore;
@@ -249,8 +277,8 @@ void gameInitDual(GameState *g, int difficulty, int mode, const GameConfig *cfg)
     {
         int dy = (rand() % 3) - 1;  /* -1/0/+1 */
         int y2 = y + dy;
-        if (y2 < 2) y2 = 2;
-        if (y2 > g->mapSize - 3) y2 = g->mapSize - 3;
+        if (y2 < 1) y2 = 1;
+        if (y2 > g->mapSize - 2) y2 = g->mapSize - 2;
         y = y2;
     }
     x1 = g->mapSize / 4;
@@ -258,8 +286,8 @@ void gameInitDual(GameState *g, int difficulty, int mode, const GameConfig *cfg)
     /* 在各自 1/4 象限内再做小范围随机 */
     x1 += (rand() % 3) - 1;
     x2 += (rand() % 3) - 1;
-    if (x1 < 3) x1 = 3;
-    if (x2 > g->mapSize - 4) x2 = g->mapSize - 4;
+    if (x1 < 1) x1 = 1;
+    if (x2 > g->mapSize - 2) x2 = g->mapSize - 2;
     if (x1 > g->mapSize / 2 - 4) x1 = g->mapSize / 2 - 4;
     if (x2 < g->mapSize / 2 + 3) x2 = g->mapSize / 2 + 3;
 
@@ -298,6 +326,7 @@ int gameMove(GameState *g)
     int hasGhost = itemHasEffect(g, 0, EFF_GHOST);
     int hasDouble = itemHasEffect(g, 0, EFF_DOUBLE);
     int mult = hasDouble ? 2 : 1;
+    Position tail = g->snake.body[g->snake.len - 1];
 
     nextPosition(&g->snake, &nx, &ny);
     if (nx < 0 || ny < 0 || nx >= g->mapSize || ny >= g->mapSize) {
@@ -307,32 +336,47 @@ int gameMove(GameState *g)
 
     cell = g->grid[ny][nx];
 
-    /* 道具收集 */
-    if (g->config.itemMode == GAMEPLAY_ITEM && cell == CELL_ITEM) {
-        itemCollect(g, 0, g->itemOnField);
-        cell = CELL_EMPTY;
-    }
-
-    /* 碰撞判定（穿墙效果允许穿过自己的身体） */
-    if (cell == CELL_WALL || cell == CELL_OBS || cell == CELL_AI || cell == CELL_SNAKE2) {
-        if (itemConsumeShield(g, 0)) return 1;
-        soundPlayDeath();
-        return 0;
-    }
-    if (cell == CELL_SNAKE && !hasGhost) {
-        if (itemConsumeShield(g, 0)) return 1;
-        soundPlayDeath();
-        return 0;
+    /* 道具收集：仅在确认能移动时才生效，这里只记录 */
+    {
+        int itemAtTarget = (g->config.itemMode == GAMEPLAY_ITEM && cell == CELL_ITEM);
+        if (itemAtTarget) {
+            cell = CELL_EMPTY;  /* 虚拟清除道具格，后续碰撞检测不会误判 */
+        }
     }
 
     eatBlue = (cell == CELL_BLUE);
     eatRed = (cell == CELL_RED && g->hasRed);
     grow = eatBlue || eatRed;
 
+    /* 先清尾再判碰撞（与双人模式保持一致），避免"移动到本回合会移走的尾巴"被误判死亡 */
     if (!grow) {
-        Position tail = g->snake.body[g->snake.len - 1];
         if (g->grid[tail.y][tail.x] == CELL_SNAKE)
             g->grid[tail.y][tail.x] = CELL_EMPTY;
+    }
+
+    /* 碰撞判定（穿墙效果允许穿过自己的身体） */
+    if (cell == CELL_WALL || cell == CELL_OBS || cell == CELL_AI || cell == CELL_SNAKE2) {
+        if (itemConsumeShield(g, 0)) {
+            /* 护盾生效：蛇不移动，恢复尾巴 */
+            if (!grow) g->grid[tail.y][tail.x] = CELL_SNAKE;
+            return 1;
+        }
+        soundPlayDeath();
+        return 0;
+    }
+    /* 自撞判定：尾巴已清除，只需检查剩余身体（ghost 效果可穿透） */
+    if (cell == CELL_SNAKE && !hasGhost) {
+        if (itemConsumeShield(g, 0)) {
+            if (!grow) g->grid[tail.y][tail.x] = CELL_SNAKE;
+            return 1;
+        }
+        soundPlayDeath();
+        return 0;
+    }
+
+    /* 确认移动：头部格子若为道具，真正收集 */
+    if (g->config.itemMode == GAMEPLAY_ITEM && g->grid[ny][nx] == CELL_ITEM) {
+        itemCollect(g, 0, g->itemOnField);
     }
 
     advanceSnake(&g->snake, nx, ny, grow);
@@ -382,7 +426,7 @@ int gameMove(GameState *g)
                 int mx = nx + dx, my = ny + dy;
                 int dist = abs(dx) + abs(dy);
                 if (dist > 0 && dist <= MAGNET_RANGE &&
-                    mx > 0 && my > 0 && mx < g->mapSize - 1 && my < g->mapSize - 1 &&
+                    mx >= 0 && my >= 0 && mx < g->mapSize && my < g->mapSize &&
                     g->grid[my][mx] == CELL_BLUE) {
                     int base = (BLUE_BASE * g->mult / 10) * mult;
                     int act = comboOnEat(g, base);
@@ -411,6 +455,7 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
     int nx1, ny1, nx2, ny2, c1, c2;
     int dead1 = 0, dead2 = 0;
     int eat1 = 0, eat2 = 0, eatRed1 = 0, eatRed2 = 0;
+    int item1 = 0, item2 = 0;       /* 目标格是否有道具（延迟到碰撞通过后再收集） */
     int peek1 = CELL_EMPTY, peek2 = CELL_EMPTY;
     int ghost1 = itemHasEffect(g, 0, EFF_GHOST);
     int ghost2 = itemHasEffect(g, 1, EFF_GHOST);
@@ -425,15 +470,14 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
     if (itemHasEffect(g, 0, EFF_FROZEN)) moveP1 = 0;
     if (itemHasEffect(g, 1, EFF_FROZEN)) moveP2 = 0;
 
-    /* 只计算需要移动的蛇的下一步位置 */
+    /* 只计算需要移动的蛇的下一步位置（不修改 grid，避免护盾回滚时状态不一致） */
     if (moveP1) {
         nextPosition(&g->snake, &nx1, &ny1);
         peek1 = (nx1 < 0 || ny1 < 0 || nx1 >= g->mapSize || ny1 >= g->mapSize)
                 ? CELL_WALL : g->grid[ny1][nx1];
-        /* 道具收集 */
+        /* 道具标记：仅记录，不在此处收集（否则护盾取消移动时 grid 已被修改） */
         if (g->config.itemMode == GAMEPLAY_ITEM && peek1 == CELL_ITEM) {
-            itemCollect(g, 0, g->itemOnField);
-            g->grid[ny1][nx1] = CELL_EMPTY;
+            item1 = 1;
             peek1 = CELL_EMPTY;
         }
         eat1 = (peek1 == CELL_BLUE);
@@ -446,10 +490,8 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
         nextPosition(&g->snake2, &nx2, &ny2);
         peek2 = (nx2 < 0 || ny2 < 0 || nx2 >= g->mapSize || ny2 >= g->mapSize)
                 ? CELL_WALL : g->grid[ny2][nx2];
-        /* 道具收集 */
         if (g->config.itemMode == GAMEPLAY_ITEM && peek2 == CELL_ITEM) {
-            itemCollect(g, 1, g->itemOnField);
-            g->grid[ny2][nx2] = CELL_EMPTY;
+            item2 = 1;
             peek2 = CELL_EMPTY;
         }
         eat2 = (peek2 == CELL_BLUE);
@@ -465,16 +507,13 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
             dead1 = dead2 = 1;
     }
 
-    /* 抹除即将移开的尾巴（仅移动的蛇，且不吃食物时） */
-    if (moveP1 && !(eat1 || eatRed1) && g->grid[tail1.y][tail1.x] == CELL_SNAKE)
-        g->grid[tail1.y][tail1.x] = CELL_EMPTY;
-    if (moveP2 && !(eat2 || eatRed2) && g->grid[tail2.y][tail2.x] == CELL_SNAKE2)
-        g->grid[tail2.y][tail2.x] = CELL_EMPTY;
-
-    /* 去尾后重新检查目标格 */
+    /* 以”虚拟清尾”重新检查目标格，避免护盾取消移动时破坏 grid */
     if (moveP1) {
         c1 = (nx1 < 0 || ny1 < 0 || nx1 >= g->mapSize || ny1 >= g->mapSize)
            ? CELL_WALL : g->grid[ny1][nx1];
+        c1 = cellAfterVirtualTailClear(c1, nx1, ny1,
+            tail1, moveP1 && !(eat1 || eatRed1),
+            tail2, 0);
         if (c1 == CELL_WALL || c1 == CELL_OBS || c1 == CELL_AI || c1 == CELL_SNAKE2) {
             if (itemConsumeShield(g, 0)) moveP1 = 0; else dead1 = 1;
         } else if (c1 == CELL_SNAKE && !ghost1) {
@@ -484,12 +523,19 @@ int gameMoveDual(GameState *g, int moveP1, int moveP2)
     if (moveP2) {
         c2 = (nx2 < 0 || ny2 < 0 || nx2 >= g->mapSize || ny2 >= g->mapSize)
            ? CELL_WALL : g->grid[ny2][nx2];
+        c2 = cellAfterVirtualTailClear(c2, nx2, ny2,
+            tail1, 0,
+            tail2, moveP2 && !(eat2 || eatRed2));
         if (c2 == CELL_WALL || c2 == CELL_OBS || c2 == CELL_AI || c2 == CELL_SNAKE) {
             if (itemConsumeShield(g, 1)) moveP2 = 0; else dead2 = 1;
         } else if (c2 == CELL_SNAKE2 && !ghost2) {
             if (itemConsumeShield(g, 1)) moveP2 = 0; else dead2 = 1;
         }
     }
+
+    /* 碰撞通过后才真正收集道具（此时蛇确定会移动到目标格） */
+    if (moveP1 && item1) itemCollect(g, 0, g->itemOnField);
+    if (moveP2 && item2) itemCollect(g, 1, g->itemOnField);
 
     if (dead1 || dead2) {
         soundPlayDeath();
