@@ -16,6 +16,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <tchar.h>
+#include <windows.h>
+#include <string.h>
 
 /* ===================================================
  *  颜色定义（示例风格视觉方案）
@@ -139,6 +141,204 @@
 #define FONT_UI    _T("Microsoft YaHei")
 #define FONT_MONO  _T("Consolas")
 #define FONT_SCALE(sz) (((sz) * 6 / 5) + 1)
+
+/* ===================================================
+ *  主题状态 - 仅现代主题
+ * =================================================== */
+
+static void drawTextCenter(int x, int y, int w, int h, LPCTSTR text, COLORREF color);
+static void drawCheckerboard(void);
+
+/* ===================================================
+ *  菜单按钮命中缓存
+ * =================================================== */
+#define MENU_HIT_MAX 8
+
+typedef struct {
+    int x;
+    int y;
+    int w;
+    int h;
+} MenuHitRect;
+
+static MenuHitRect s_menuBtns[MENU_HIT_MAX];
+static int s_menuBtnCount = 0;
+
+static void resetMenuButtons(void)
+{
+    s_menuBtnCount = 0;
+}
+
+static void addMenuButtonRect(int x, int y, int w, int h, int index)
+{
+    if (index >= 1 && index <= MENU_HIT_MAX) {
+        s_menuBtns[index - 1].x = x;
+        s_menuBtns[index - 1].y = y;
+        s_menuBtns[index - 1].w = w;
+        s_menuBtns[index - 1].h = h;
+        if (index > s_menuBtnCount) s_menuBtnCount = index;
+    }
+}
+
+int gfxHitMenuButton(int mx, int my)
+{
+    int i;
+    for (i = 0; i < s_menuBtnCount; i++) {
+        if (mx >= s_menuBtns[i].x && mx <= s_menuBtns[i].x + s_menuBtns[i].w &&
+            my >= s_menuBtns[i].y && my <= s_menuBtns[i].y + s_menuBtns[i].h) {
+            return i + 1;
+        }
+    }
+    return 0;
+}
+
+/* ===================================================
+ *  自定义角落按钮（背景图 / 背景音乐）
+ * =================================================== */
+#define MENU_CORNER_BTN_W       38
+#define MENU_CORNER_BTN_H       38
+#define MENU_CORNER_MARGIN_X    12
+#define MENU_CORNER_MARGIN_Y    12
+#define MENU_CORNER_BTN_GAP      8
+
+static int s_menuHasBgImage = 0;
+static IMAGE s_menuBgImage;
+
+typedef struct {
+    int x;
+    int y;
+    int w;
+    int h;
+} MenuCornerButton;
+
+static MenuCornerButton s_menuImageBtn = {0, 0, MENU_CORNER_BTN_W, MENU_CORNER_BTN_H};
+static MenuCornerButton s_menuMusicBtn = {0, 0, MENU_CORNER_BTN_W, MENU_CORNER_BTN_H};
+static MenuCornerButton s_menuClearImageBtn = {0, 0, MENU_CORNER_BTN_W, MENU_CORNER_BTN_H};
+static MenuCornerButton s_menuClearMusicBtn = {0, 0, MENU_CORNER_BTN_W, MENU_CORNER_BTN_H};
+
+static int fileExistsInFileSystem(const char *path)
+{
+    return (path != NULL && *path != '\0' && GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES);
+}
+
+static int pointInRect(int x, int y, const MenuCornerButton *r)
+{
+    if (!r) return 0;
+    return x >= r->x && x <= r->x + r->w && y >= r->y && y <= r->y + r->h;
+}
+
+static void updateCornerButtonRects(void)
+{
+    s_menuImageBtn.x = MENU_CORNER_MARGIN_X;
+    s_menuImageBtn.y = WIN_H - MENU_CORNER_BTN_H - MENU_CORNER_MARGIN_Y;
+    s_menuImageBtn.w = MENU_CORNER_BTN_W;
+    s_menuImageBtn.h = MENU_CORNER_BTN_H;
+
+    s_menuClearImageBtn.x = s_menuImageBtn.x + MENU_CORNER_BTN_W + MENU_CORNER_BTN_GAP;
+    s_menuClearImageBtn.y = WIN_H - MENU_CORNER_BTN_H - MENU_CORNER_MARGIN_Y;
+    s_menuClearImageBtn.w = MENU_CORNER_BTN_W;
+    s_menuClearImageBtn.h = MENU_CORNER_BTN_H;
+
+    s_menuClearMusicBtn.x = WIN_W - 2 * MENU_CORNER_BTN_W - MENU_CORNER_BTN_GAP - MENU_CORNER_MARGIN_X;
+    s_menuClearMusicBtn.y = WIN_H - MENU_CORNER_BTN_H - MENU_CORNER_MARGIN_Y;
+    s_menuClearMusicBtn.w = MENU_CORNER_BTN_W;
+    s_menuClearMusicBtn.h = MENU_CORNER_BTN_H;
+
+    s_menuMusicBtn.x = WIN_W - MENU_CORNER_BTN_W - MENU_CORNER_MARGIN_X;
+    s_menuMusicBtn.y = WIN_H - MENU_CORNER_BTN_H - MENU_CORNER_MARGIN_Y;
+    s_menuMusicBtn.w = MENU_CORNER_BTN_W;
+    s_menuMusicBtn.h = MENU_CORNER_BTN_H;
+}
+
+int gfxHitMenuCornerAction(int mx, int my)
+{
+    updateCornerButtonRects();
+    if (pointInRect(mx, my, &s_menuImageBtn)) {
+        return GFX_MENU_ACTION_IMAGE;
+    }
+    if (pointInRect(mx, my, &s_menuClearImageBtn)) {
+        return GFX_MENU_ACTION_CLEAR_IMAGE;
+    }
+    if (pointInRect(mx, my, &s_menuClearMusicBtn)) {
+        return GFX_MENU_ACTION_CLEAR_MUSIC;
+    }
+    if (pointInRect(mx, my, &s_menuMusicBtn)) {
+        return GFX_MENU_ACTION_MUSIC;
+    }
+    return 0;
+}
+
+void gfxSetMenuBackgroundImage(const char *path)
+{
+    if (path == NULL || *path == '\0') {
+        gfxClearMenuBackgroundImage();
+        return;
+    }
+
+    if (!fileExistsInFileSystem(path)) {
+        return;
+    }
+
+    loadimage(&s_menuBgImage, path, WIN_W, WIN_H, true);
+    s_menuHasBgImage = 1;
+}
+
+void gfxClearMenuBackgroundImage(void)
+{
+    s_menuHasBgImage = 0;
+}
+
+int gfxHasMenuBackgroundImage(void)
+{
+    return s_menuHasBgImage;
+}
+
+static void drawMenuCornerButtons(void)
+{
+    MenuCornerButton imgBtn;
+    MenuCornerButton musicBtn;
+    MenuCornerButton clearImageBtn;
+    MenuCornerButton clearMusicBtn;
+
+    updateCornerButtonRects();
+    imgBtn = s_menuImageBtn;
+    musicBtn = s_menuMusicBtn;
+    clearImageBtn = s_menuClearImageBtn;
+    clearMusicBtn = s_menuClearMusicBtn;
+
+    settextstyle(FONT_SCALE(18), 0, FONT_UI);
+    setbkmode(TRANSPARENT);
+
+    setfillcolor(CLR_PANEL_SOFT);
+    setlinecolor(CLR_BORDER);
+    solidrectangle(imgBtn.x, imgBtn.y, imgBtn.x + imgBtn.w, imgBtn.y + imgBtn.h);
+
+    setfillcolor(s_menuHasBgImage ? CLR_PANEL_GLOW : CLR_HINT);
+    solidcircle(imgBtn.x + imgBtn.w / 2, imgBtn.y + imgBtn.h / 2, 10);
+    settextcolor(CLR_TEXT);
+    drawTextCenter(imgBtn.x, imgBtn.y, imgBtn.w, imgBtn.h, _T("图"), CLR_TEXT);
+
+    setfillcolor(CLR_PANEL_SOFT);
+    setlinecolor(CLR_BORDER);
+    solidrectangle(clearImageBtn.x, clearImageBtn.y, clearImageBtn.x + clearImageBtn.w, clearImageBtn.y + clearImageBtn.h);
+
+    settextcolor(CLR_TEXT);
+    drawTextCenter(clearImageBtn.x, clearImageBtn.y, clearImageBtn.w, clearImageBtn.h, _T("清图"), CLR_TEXT);
+
+    setfillcolor(CLR_PANEL_SOFT);
+    setlinecolor(CLR_BORDER);
+    solidrectangle(clearMusicBtn.x, clearMusicBtn.y, clearMusicBtn.x + clearMusicBtn.w, clearMusicBtn.y + clearMusicBtn.h);
+
+    settextcolor(CLR_TEXT);
+    drawTextCenter(clearMusicBtn.x, clearMusicBtn.y, clearMusicBtn.w, clearMusicBtn.h, _T("清音"), CLR_TEXT);
+
+    setfillcolor(CLR_PANEL_SOFT);
+    setlinecolor(CLR_BORDER);
+    solidrectangle(musicBtn.x, musicBtn.y, musicBtn.x + musicBtn.w, musicBtn.y + musicBtn.h);
+
+    settextcolor(CLR_TEXT);
+    drawTextCenter(musicBtn.x, musicBtn.y, musicBtn.w, musicBtn.h, _T("音"), CLR_TEXT);
+}
 
 /* ===================================================
  *  内部绘制辅助
@@ -692,6 +892,7 @@ static void drawPixelButton(int index, LPCTSTR text, int hover)
     COLORREF border = hover ? CLR_BORDER_HI : CLR_BORDER;
     COLORREF fill = hover ? CLR_PANEL_SOFT : CLR_PANEL;
 
+    addMenuButtonRect(x, y, w, h, index);
     drawPixelPanel(x, y, w, h, fill);
     setlinecolor(border);
     rectangle(x + 2, y + 2, x + w - 2, y + h - 2);
@@ -731,8 +932,9 @@ static void drawPixelButton(int index, LPCTSTR text, int hover)
 
 static void mapOrigin(const GameState *g, int *ox, int *oy)
 {
-    int mapSize = normalizeMapSize(g->mapSize);
+    int mapSize = normalizeMapSize(g ? g->mapSize : MAP_SIZE_LARGE);
     int mapPx = mapSize * CELL_PX;
+
     *ox = (WIN_W - mapPx) / 2;
     *oy = 56 + (WIN_H - 56 - 36 - mapPx) / 2;
 }
@@ -907,6 +1109,8 @@ static void drawMapAt(const GameState *g, int ox, int oy)
 {
     int x, y, mapSize;
     int mapPx;
+    if (!g) return;
+
     mapSize = normalizeMapSize(g->mapSize);
     mapPx = mapSize * CELL_PX;
 
@@ -1100,8 +1304,18 @@ void gfxDrawMenu(const GameState *g, int menuPage, int hoverIndex)
 {
     TCHAR buf[128];
 
+    resetMenuButtons();
     cleardevice();
-    drawCheckerboard();
+
+    if (s_menuHasBgImage) {
+        putimage(0, 0, &s_menuBgImage);
+    } else {
+        drawCheckerboard();
+        setfillcolor(CLR_BG_DARK);
+        solidrectangle(0, 0, WIN_W, 120);
+    }
+
+    drawMenuCornerButtons();
 
     setfillcolor(CLR_BG_DARK);
     solidrectangle(0, 0, WIN_W, 120);
@@ -1126,10 +1340,11 @@ void gfxDrawMenu(const GameState *g, int menuPage, int hoverIndex)
         drawTextCenter(0, 520, WIN_W, 30, _T("按 Q 退出"), CLR_HINT);
     }
     else if (menuPage == MENU_SINGLE_DIFF) {
-        drawTextCenter(0, 150, WIN_W, 30, _T("选择难度"), CLR_TEXT);
+        drawTextCenter(0, 150, WIN_W, 30, _T("选择单人玩法"), CLR_TEXT);
         drawPixelButton(1, _T("1  简单"), hoverIndex == 1);
         drawPixelButton(2, _T("2  普通"), hoverIndex == 2);
         drawPixelButton(3, _T("3  困难"), hoverIndex == 3);
+        drawPixelButton(4, _T("4  生存模式"), hoverIndex == 4);
         drawTextCenter(0, 520, WIN_W, 30, _T("M 返回 | Q 退出"), CLR_HINT);
     }
     else if (menuPage == MENU_DUAL_MODE) {

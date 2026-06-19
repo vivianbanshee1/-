@@ -16,8 +16,8 @@ static int randomEmptyCell(GameState *g, Position *p)
 {
     int tries = g->mapSize * g->mapSize * 2;
     while (tries-- > 0) {
-        int x = 1 + rand() % (g->mapSize - 2);
-        int y = 1 + rand() % (g->mapSize - 2);
+        int x = rand() % g->mapSize;
+        int y = rand() % g->mapSize;
         if (g->grid[y][x] == CELL_EMPTY) {
             p->x = x;
             p->y = y;
@@ -37,8 +37,8 @@ void gamePlaceBlueFood(GameState *g)
     Position p;
     int tries = g->mapSize * g->mapSize * 2;
     while (tries-- > 0) {
-        int x = 1 + rand() % (g->mapSize - 2);
-        int y = 1 + rand() % (g->mapSize - 2);
+        int x = rand() % g->mapSize;
+        int y = rand() % g->mapSize;
         if (g->grid[y][x] == CELL_EMPTY &&
             !(g->hasRed && x == g->redFood.x && y == g->redFood.y)) {
             g->blueFood.x = x;
@@ -60,8 +60,8 @@ void gamePlaceRedFood(GameState *g)
     Position p;
     int tries = g->mapSize * g->mapSize * 2;
     while (tries-- > 0) {
-        int x = 1 + rand() % (g->mapSize - 2);
-        int y = 1 + rand() % (g->mapSize - 2);
+        int x = rand() % g->mapSize;
+        int y = rand() % g->mapSize;
         if (g->grid[y][x] == CELL_EMPTY && !(x == g->blueFood.x && y == g->blueFood.y)) {
             g->redFood.x = x;
             g->redFood.y = y;

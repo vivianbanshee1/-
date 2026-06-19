@@ -52,18 +52,20 @@ static void clearActiveItemState(GameState *g)
 static void spawnItem(GameState *g)
 {
     int type, tries, x, y;
-    int maxType = (g->gameMode == MODE_SINGLE) ? ITEM_MAX - 1 : ITEM_MAX;
+    int allowFreeze = (g->gameMode == MODE_DUAL ||
+                       g->gameMode == MODE_DUAL_TIMED ||
+                       g->gameMode == MODE_DUAL_MIRROR);
 
-    /* 随机选取类型（排除冻结，如果是单人） */
-    type = 1 + rand() % maxType;
-    if (type == ITEM_FREEZE && g->gameMode == MODE_SINGLE)
+    /* 随机选取类型（非双人模式排除冻结） */
+    type = 1 + rand() % ITEM_MAX;
+    if (type == ITEM_FREEZE && !allowFreeze)
         type = ITEM_TURBO;  /* 单人模式不生成冻结，用极速替代 */
 
     /* 随机找空格 */
     tries = g->mapSize * g->mapSize * 2;
     while (tries-- > 0) {
-        x = 1 + rand() % (g->mapSize - 2);
-        y = 1 + rand() % (g->mapSize - 2);
+        x = rand() % g->mapSize;
+        y = rand() % g->mapSize;
         if (g->grid[y][x] == CELL_EMPTY) {
             g->itemPos.x = x;
             g->itemPos.y = y;
@@ -245,7 +247,11 @@ int itemIsNegative(int itemType)
 void itemRemove(GameState *g)
 {
     if (g->itemOnField != ITEM_NONE) {
-        g->grid[g->itemPos.y][g->itemPos.x] = CELL_EMPTY;
+        if (g->itemPos.x >= 0 && g->itemPos.y >= 0 &&
+            g->itemPos.x < g->mapSize && g->itemPos.y < g->mapSize &&
+            g->grid[g->itemPos.y][g->itemPos.x] == CELL_ITEM) {
+            g->grid[g->itemPos.y][g->itemPos.x] = CELL_EMPTY;
+        }
         g->itemOnField = ITEM_NONE;
         g->itemLife = 0.0f;
     }

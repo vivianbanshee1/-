@@ -46,10 +46,19 @@
 #define KEY_RIGHT     0x104
 
 /* ===================================================
- *  输入辅助 — 按钮命中检测
+ *  菜单自定义动作返回值
+ * =================================================== */
+#define GFX_MENU_ACTION_MUSIC        0x1001
+#define GFX_MENU_ACTION_IMAGE        0x1002
+#define GFX_MENU_ACTION_CLEAR_IMAGE  0x1003
+#define GFX_MENU_ACTION_CLEAR_MUSIC  0x1004
+
+/* ===================================================
+ *  按钮命中检测
  * =================================================== */
 int gfxHitDeadButton(int mx, int my);
 int gfxHitMirrorEndButton(int mx, int my);
+int gfxHitMenuCornerAction(int mx, int my);
 
 /* ===================================================
  *  图形系统初始化 / 销毁
@@ -73,5 +82,13 @@ void gfxDrawMirrorGame(const GameState *g1, const GameState *g2,
 void gfxDrawMirrorDeadTitle(const GameState *g1, const GameState *g2,
                             int p1Dead, int p2Dead, int remainingMs);
 void gfxDrawMirrorOver(int score1, int score2, int winner, int hoverIndex);
+
+/* 菜单按钮命中检测 */
+int gfxHitMenuButton(int mx, int my);
+
+/* 背景图设置 */
+void gfxSetMenuBackgroundImage(const char *path);
+void gfxClearMenuBackgroundImage(void);
+int  gfxHasMenuBackgroundImage(void);
 
 #endif /* GFX_H */

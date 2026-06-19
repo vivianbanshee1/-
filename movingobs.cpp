@@ -32,8 +32,8 @@ void movingObsUpdate(GameState *g, float dt)
         if (g->obsMovingSpawnCD <= 0.0f) {
             int tries = 100;
             while (tries-- > 0) {
-                int x = 2 + rand() % (g->mapSize - 4);
-                int y = 2 + rand() % (g->mapSize - 4);
+                int x = rand() % g->mapSize;
+                int y = rand() % g->mapSize;
                 if (g->grid[y][x] == CELL_EMPTY) {
                     int idx = g->obsMovingCount;
                     g->obsMoving[idx].x = x;
@@ -59,8 +59,8 @@ void movingObsUpdate(GameState *g, float dt)
                 int ny = g->obsMoving[i].y + dirDY[g->obsMovingDir[i]];
                 int cell;
 
-                if (nx <= 1 || ny <= 1 || nx >= g->mapSize - 2 ||
-                    ny >= g->mapSize - 2) {
+                if (nx < 0 || ny < 0 || nx >= g->mapSize ||
+                    ny >= g->mapSize) {
                     g->obsMovingDir[i] = flipDir(g->obsMovingDir[i]);
                     continue;
                 }

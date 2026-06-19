@@ -8,11 +8,73 @@
 #include "gfx.h"
 
 #include <easyx.h>
+#include <windows.h>
+
+static int s_windowClosePending = 0;
+
+static void markWindowClosePending(void)
+{
+    s_windowClosePending = 1;
+}
+
+static int isCloseMessage(const MSG *msg)
+{
+    if (!msg) return 0;
+
+    if (msg->message == WM_CLOSE || msg->message == WM_QUIT
+        || msg->message == WM_DESTROY || msg->message == WM_NCDESTROY)
+        return 1;
+
+    if (msg->message == WM_SYSCOMMAND && ((msg->wParam & 0xFFF0) == SC_CLOSE))
+        return 1;
+
+    return 0;
+}
+
+int gfxWindowCloseRequested(void)
+{
+    MSG msg;
+
+    if (s_windowClosePending) return 1;
+
+    if (PeekMessage(&msg, NULL, WM_CLOSE, WM_CLOSE, PM_REMOVE)) {
+        markWindowClosePending();
+        return 1;
+    }
+    if (PeekMessage(&msg, NULL, WM_QUIT, WM_QUIT, PM_REMOVE)) {
+        markWindowClosePending();
+        return 1;
+    }
+    if (PeekMessage(&msg, NULL, WM_DESTROY, WM_DESTROY, PM_REMOVE)) {
+        markWindowClosePending();
+        return 1;
+    }
+    if (PeekMessage(&msg, NULL, WM_NCDESTROY, WM_NCDESTROY, PM_REMOVE)) {
+        markWindowClosePending();
+        return 1;
+    }
+    if (PeekMessage(&msg, NULL, WM_SYSCOMMAND, WM_SYSCOMMAND, PM_REMOVE)) {
+        if (isCloseMessage(&msg)) {
+            markWindowClosePending();
+            return 1;
+        }
+    }
+
+    return 0;
+}
 
 int gfxGetKey(void)
 {
     ExMessage m;
-    while (peekmessage(&m, EX_KEY | EX_MOUSE, true)) {
+    /* 仅处理键盘消息，不消费鼠标消息。
+     * 鼠标消息留给 pollMirrorEndButton() 等专门处理，避免镜像模式按钮点击被吞掉。 */
+    while (peekmessage(&m, EX_KEY, true)) {
+        if (m.message == WM_CLOSE || m.message == WM_QUIT
+            || (m.message == WM_SYSCOMMAND && ((m.wParam & 0xFFF0) == SC_CLOSE))) {
+            markWindowClosePending();
+            return 0;
+        }
+
         if (m.message == WM_KEYDOWN) {
             if (m.vkcode == VK_UP) return KEY_UP;
             if (m.vkcode == VK_DOWN) return KEY_DOWN;
@@ -21,8 +83,6 @@ int gfxGetKey(void)
             if (m.vkcode >= 'a' && m.vkcode <= 'z') return m.vkcode - 'a' + 'A';
             return m.vkcode;
         }
-        if (m.message == WM_LBUTTONDOWN || m.message == WM_RBUTTONDOWN || m.message == WM_MBUTTONDOWN)
-            return ' ';
     }
     return 0;
 }
@@ -30,25 +90,29 @@ int gfxGetKey(void)
 int gfxGetMenuInput(int *hoverIndex)
 {
     ExMessage m;
-    int i, mx, my, hit;
+    int mx, my, hit;
 
     while (peekmessage(&m, EX_MOUSE | EX_KEY, true)) {
+        if (m.message == WM_CLOSE || m.message == WM_QUIT
+            || (m.message == WM_SYSCOMMAND && ((m.wParam & 0xFFF0) == SC_CLOSE))) {
+            markWindowClosePending();
+            return 0;
+        }
+
         if (m.message == WM_MOUSEMOVE) {
-            mx = m.x; my = m.y; hit = 0;
-            for (i = 1; i <= 5; i++) {
-                int bx = MENU_BTN_X;
-                int by = MENU_BTN_START_Y + (i - 1) * MENU_BTN_GAP;
-                if (mx >= bx && mx <= bx + MENU_BTN_W && my >= by && my <= by + MENU_BTN_H) { hit = i; break; }
-            }
+            mx = m.x; my = m.y;
+            hit = gfxHitMenuButton(mx, my);
             if (hoverIndex) *hoverIndex = hit;
         }
         else if (m.message == WM_LBUTTONDOWN) {
-            mx = m.x; my = m.y; hit = 0;
-            for (i = 1; i <= 5; i++) {
-                int bx = MENU_BTN_X;
-                int by = MENU_BTN_START_Y + (i - 1) * MENU_BTN_GAP;
-                if (mx >= bx && mx <= bx + MENU_BTN_W && my >= by && my <= by + MENU_BTN_H) { hit = i; break; }
+            mx = m.x; my = m.y;
+            hit = gfxHitMenuCornerAction(mx, my);
+            if (hit == GFX_MENU_ACTION_MUSIC || hit == GFX_MENU_ACTION_IMAGE
+                || hit == GFX_MENU_ACTION_CLEAR_IMAGE || hit == GFX_MENU_ACTION_CLEAR_MUSIC) {
+                return hit;
             }
+
+            hit = gfxHitMenuButton(mx, my);
             if (hoverIndex) *hoverIndex = hit;
             if (hit > 0) return '0' + hit;
         }
@@ -67,6 +131,12 @@ int gfxGetDeadInput(int *hoverIndex)
     static const char keys[3] = { 'R', 'M', 'Q' };
 
     while (peekmessage(&m, EX_MOUSE | EX_KEY, true)) {
+        if (m.message == WM_CLOSE || m.message == WM_QUIT
+            || (m.message == WM_SYSCOMMAND && ((m.wParam & 0xFFF0) == SC_CLOSE))) {
+            markWindowClosePending();
+            return 0;
+        }
+
         if (m.message == WM_MOUSEMOVE) {
             hit = gfxHitDeadButton(m.x, m.y);
             if (hoverIndex) *hoverIndex = hit;

@@ -182,10 +182,14 @@ typedef struct {
 } FloatText;
 
 typedef struct {
-    int      snakeColor;      /* SNAKE_COLOR_* */
-    int      mapSize;         /* 16 / 18 / 20 */
-    int      itemMode;        /* GAMEPLAY_CLASSIC / GAMEPLAY_ITEM */
-    int      aiEnabled;       /* 0=关闭，1=开启 */
+    int      snakeColor;         /* SNAKE_COLOR_* */
+    int      mapSize;            /* 16 / 18 / 20 */
+    int      itemMode;           /* GAMEPLAY_CLASSIC / GAMEPLAY_ITEM */
+    int      aiEnabled;          /* 0=关闭，1=开启 */
+
+    /* 菜单可持久化自定义外观 */
+    char     menuBgImagePath[MAX_PATH];
+    char     menuMusicPath[MAX_PATH];
 } GameConfig;
 
 typedef struct {
